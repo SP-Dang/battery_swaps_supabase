@@ -95,7 +95,7 @@
     }
 
     // THE "ENGINE" THAT POWERS THE APP
-    async function process(type) {
+async function process(type) {
       const status = document.getElementById('status');
       const bid = document.getElementById('bid').value.trim();
       const vno = document.getElementById('vno').value.trim();
@@ -103,33 +103,29 @@
 
       if (!bid) { status.innerText = "❌ Enter Battery ID"; return; }
 
-      status.innerText = "⏳ Authenticating with Supabase...";
+      status.innerText = "⏳ Authenticating...";
       status.style.color = "orange";
 
-      // =========================================================
-      // STEP 1: IMPROVED GATEKEEPER (Case Insensitive + Flexible)
-      // =========================================================
+      // 1. MASTER VERIFICATION (Now grabbing the 'model' too)
       const { data: masterData, error: masterErr } = await _supabase
         .from('battery_master') 
-        .select('battery_id')
-        .ilike('battery_id', bid) // Changed to .ilike for case-insensitivity
-        .maybeSingle();           // Changed to .maybeSingle to prevent "strict" errors
+        .select('battery_id, model') // <--- ADDED: Fetch 'model' here
+        .ilike('battery_id', bid)
+        .maybeSingle();
 
-      // Check if there was a real database error OR if no data was found
       if (masterErr || !masterData) {
-        console.error("Supabase Error:", masterErr); // This helps you debug in the browser
-        status.innerText = "❌ REJECTED: Battery ID not found in Master List!";
+        status.innerText = "❌ REJECTED: Not in Master List!";
         status.style.color = "red";
         return; 
       }
-      // =========================================================
+
+      // Store the model name from the Master List
+      const batteryModel = masterData.model; 
 
       const today = new Date().toISOString().split('T')[0];
       const nowTime = new Date().toLocaleTimeString('en-GB');
 
-      // STEP 2: PROCEED WITH LOGGING (Now that ID is valid)
       if (type === 'IN') {
-        // Logic for LOG IN (Same as before)
         const { data: existing } = await _supabase
           .from('battery_swaps')
           .select('id')
@@ -137,19 +133,27 @@
           .is('time_out', null);
 
         if (existing && existing.length > 0) {
-          status.innerText = "⚠️ BLOCKED: Already IN the shop!";
+          status.innerText = "⚠️ BLOCKED: Already IN!";
           status.style.color = "red";
           return;
         }
 
+        // 2. INSERT (Now including the model)
         const { error } = await _supabase
           .from('battery_swaps')
-          .insert([{ battery_id: bid, vehicle_in: vno, mileage_in: mil, date_in: today, time_in: nowTime }]);
+          .insert([{ 
+            battery_id: bid, 
+            model: batteryModel, // <--- ADDED: Save model to the log
+            vehicle_in: vno, 
+            mileage_in: mil, 
+            date_in: today, 
+            time_in: nowTime 
+          }]);
 
         handleResponse(error, "Logged IN", status);
 
       } else {
-        // Logic for LOG OUT (Same as before)
+        // ... (LOG OUT logic remains the same, as the model was already saved during IN)
         const { data: records, error: fetchErr } = await _supabase
           .from('battery_swaps')
           .select('id')
