@@ -1,0 +1,16 @@
+const channel = supabase
+  .channel('schema-db-changes')
+  .on(
+    'postgres_changes',
+    {
+      event: 'INSERT', // Only listen for new scans
+      schema: 'public',
+      table: 'battery_swaps',
+    },
+    (payload) => {
+      console.log('New Swap Detected!', payload.new);
+      // Logic to play a sound or show a notification on your dashboard
+      updateMyDashboardUI(payload.new);
+    }
+  )
+  .subscribe();
