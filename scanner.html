@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta charset="UTF-8">
   <title>Battery Station Scanner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -86,35 +87,100 @@
       if (scanner) scanner.stop().catch(e => console.log(e));
     }
 
-    function process(type) {
-      const status = document.getElementById('status');
-      status.innerText = "Saving to Google Sheets...";
-      status.style.color = "blue";
+// Initialize Supabase (Replace with your actual keys from Supabase Settings > API)
+const supabaseUrl = 'https://bdcwfgutqnfhacanswlk.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A';
+const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-      const data = {
-        batteryId: document.getElementById('bid').value,
-        vehicleNo: document.getElementById('vno').value,
-        mileage: document.getElementById('mil').value,
-        type: type
-      };
+async function process(type) {
+  const status = document.getElementById('status');
+  const bid = document.getElementById('bid').value.trim();
+  const vno = document.getElementById('vno').value.trim();
+  const mil = document.getElementById('mil').value.trim();
 
-      // Replace with your deployed Apps Script Web App URL
-      fetch("YOUR_SCRIPT_URL", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" }
-      })
-      .then(res => res.text())
-      .then(msg => {
-        status.innerText = "✅ " + msg;
-        status.style.color = "green";
-        document.getElementById('bid').value = "";
-      })
-      .catch(err => {
-        status.innerText = "❌ Error: " + err;
-        status.style.color = "red";
-      });
+  // Basic validation before even touching the database
+  if (!bid) { status.innerText = "❌ Enter Battery ID"; return; }
+
+  status.innerText = "⏳ Connecting to Supabase...";
+  status.style.color = "orange";
+
+  const today = new Date().toISOString().split('T')[0];
+  const nowTime = new Date().toLocaleTimeString('en-GB'); // Format HH:MM:SS
+
+  if (type === 'IN') {
+    // --- LOGIC FOR IN ---
+    // 1. Check if it's already IN (find row where time_out is null)
+    const { data: existing } = await supabase
+      .from('battery_swaps')
+      .select('id')
+      .eq('battery_id', bid)
+      .is('time_out', null);
+
+    if (existing && existing.length > 0) {
+      status.innerText = "⚠️ BLOCKED: Already IN the shop!";
+      status.style.color = "red";
+      return;
     }
-  </script>
+
+    // 2. Insert new record
+    const { error } = await supabase
+      .from('battery_swaps')
+      .insert([{ 
+        battery_id: bid, 
+        vehicle_in: vno, 
+        mileage_in: mil, 
+        date_in: today, 
+        time_in: nowTime 
+      }]);
+
+    handleResponse(error, "Logged IN", status);
+
+  } else {
+    // --- LOGIC FOR OUT ---
+    // 1. Find the latest open record for this battery
+    const { data: records, error: fetchErr } = await supabase
+      .from('battery_swaps')
+      .select('id')
+      .eq('battery_id', bid)
+      .is('time_out', null)
+      .order('id', { ascending: false })
+      .limit(1);
+
+    if (fetchErr || !records || records.length === 0) {
+      status.innerText = "⚠️ BLOCKED: Battery is not IN the shop!";
+      status.style.color = "red";
+      return;
+    }
+
+    // 2. Update that specific row with OUT details
+    const { error: updateErr } = await supabase
+      .from('battery_swaps')
+      .update({ 
+        vehicle_out: vno, 
+        mileage_out: mil, 
+        date_out: today, 
+        time_out: nowTime 
+      })
+      .eq('id', records[0].id);
+
+    handleResponse(updateErr, "Logged OUT", status);
+  }
+}
+
+// Helper to handle success/error messages
+function handleResponse(error, action, statusEl) {
+  if (error) {
+    statusEl.innerText = "❌ Database Error: " + error.message;
+    statusEl.style.color = "red";
+  } else {
+    statusEl.innerText = "✅ " + action + " Successfully!";
+    statusEl.style.color = "green";
+    beep();
+    // Clear inputs
+    document.getElementById('bid').value = "";
+    document.getElementById('vno').value = "";
+    document.getElementById('mil').value = "";
+  }
+}
 </body>
 </html>
