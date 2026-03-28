@@ -1,16 +1,71 @@
-const channel = supabase
-  .channel('schema-db-changes')
-  .on(
-    'postgres_changes',
-    {
-      event: 'INSERT', // Only listen for new scans
-      schema: 'public',
-      table: 'battery_swaps',
-    },
-    (payload) => {
-      console.log('New Swap Detected!', payload.new);
-      // Logic to play a sound or show a notification on your dashboard
-      updateMyDashboardUI(payload.new);
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8">
+  <title>LSM Live Dashboard</title>
+  <style>
+    body { font-family: sans-serif; background: #1a1a1a; color: white; padding: 20px; text-align: center; }
+    .stat-card { background: #2c3e50; padding: 20px; border-radius: 12px; display: inline-block; margin: 10px; min-width: 200px; }
+    .stat-number { font-size: 48px; font-weight: bold; color: #FF4500; }
+    #live-feed { max-width: 600px; margin: 20px auto; background: #333; border-radius: 8px; padding: 10px; text-align: left; }
+    .feed-item { border-bottom: 1px solid #444; padding: 10px; animation: highlight 2s ease-out; }
+    @keyframes highlight { from { background: #FF450033; } to { background: transparent; } }
+  </style>
+</head>
+<body>
+
+  <h1>LSM Live Command Center</h1>
+  <div style="font-style: italic; color: #888;">Powered by Somphone</div>
+
+  <div class="stat-card">
+    <div>TOTAL SWAPS TODAY</div>
+    <div id="today-count" class="stat-number">0</div>
+  </div>
+
+  <h2>Recent Activity</h2>
+  <div id="live-feed">
+    <div style="color: #888; text-align: center;">Waiting for scans...</div>
+  </div>
+
+  <script>
+    // 1. Initialize Supabase
+    const supabaseUrl = 'https://bdcwfgutqnfhacanswlk.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A';
+    const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+    // 2. The "Live Listener" Code
+    const channel = _supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'battery_swaps' },
+        (payload) => {
+          console.log('New Swap!', payload.new);
+          updateDashboard(payload.new);
+        }
+      )
+      .subscribe();
+
+    // 3. Update the UI when a new scan happens
+    function updateDashboard(data) {
+      const feed = document.getElementById('live-feed');
+      
+      // Create a new feed item
+      const item = document.createElement('div');
+      item.className = 'feed-item';
+      item.innerHTML = `
+        <strong>${data.time_in}</strong>: Battery <b>${data.battery_id}</b> 
+        (${data.model}) Logged IN for Vehicle <b>${data.vehicle_in}</b>
+      `;
+      
+      // Add to top of list
+      feed.prepend(item);
+
+      // Increment the counter
+      const counter = document.getElementById('today-count');
+      counter.innerText = parseInt(counter.innerText) + 1;
     }
-  )
-  .subscribe();
+  </script>
+</body>
+</html>
