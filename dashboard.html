@@ -30,41 +30,63 @@
     <div id="placeholder" style="color: #888; text-align: center;">Waiting for scans...</div>
   </div>
 
-  <script>
+ <script>
     // 1. Initialize Supabase
     const supabaseUrl = 'https://bdcwfgutqnfhacanswlk.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A';
-    
-    // Using _supabase to avoid naming conflicts
     const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-    // 2. The Live Listener (Connects to the "Shouting" database)
+    // --- NEW: Load existing data when page opens ---
+    async function loadInitialData() {
+      const today = new Date().toISOString().split('T')[0];
+
+      // Get total count for today
+      const { count, error: countErr } = await _supabase
+        .from('battery_swaps')
+        .select('*', { count: 'exact', head: true })
+        .eq('date_in', today);
+
+      if (!countErr) document.getElementById('today-count').innerText = count || 0;
+
+      // Get last 5 activities
+      const { data: history, error: histErr } = await _supabase
+        .from('battery_swaps')
+        .select('*')
+        .eq('date_in', today)
+        .order('id', { ascending: false })
+        .limit(5);
+
+      if (!histErr && history) {
+        history.forEach(item => updateDashboard(item, false)); // false = don't increment counter
+      }
+    }
+
+    // Run the startup check
+    loadInitialData();
+
+    // 2. The Live Listener (Stays the same)
     const channel = _supabase
       .channel('schema-db-changes')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'battery_swaps' },
         (payload) => {
-          console.log('New Swap Detected!', payload.new);
-          updateDashboard(payload.new);
+          updateDashboard(payload.new, true); // true = increment counter
         }
       )
       .subscribe();
 
-    // 3. Update the UI
-    function updateDashboard(data) {
+    // 3. Updated UI Function
+    function updateDashboard(data, isNewScan) {
       const feed = document.getElementById('live-feed');
       const placeholder = document.getElementById('placeholder');
-      
-      // Remove the "Waiting" text on the first scan
       if (placeholder) placeholder.remove();
       
-      // Create a new feed item
       const item = document.createElement('div');
       item.className = 'feed-item';
       
-      // Use logical defaults if data is missing
-      const time = data.time_in || "Just now";
+      // Use logical defaults
+      const time = data.time_in || "N/A";
       const bid = data.battery_id || "Unknown";
       const model = data.model || "Standard";
       const vno = data.vehicle_in || "N/A";
@@ -73,13 +95,17 @@
         <strong>${time}</strong>: Battery <b>${bid}</b> (${model}) Logged IN for Vehicle <b>${vno}</b>
       `;
       
-      // Add to top of list
-      feed.prepend(item);
+      feed.appendChild(item); // History goes at the bottom, new scans at top? 
+      // Change to feed.prepend(item) if you want newest at the top
 
-      // Increment the counter
-      const counter = document.getElementById('today-count');
-      counter.innerText = parseInt(counter.innerText) + 1;
+      if (isNewScan) {
+        const counter = document.getElementById('today-count');
+        counter.innerText = parseInt(counter.innerText) + 1;
+        // Optional: Play a sound in the office when a new scan hits
+        console.log("DING! New scan from workshop.");
+      }
     }
   </script>
+  
 </body>
 </html>
