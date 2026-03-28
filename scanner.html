@@ -3,19 +3,20 @@
 <head>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta charset="UTF-8">
-  <title>Battery Station Scanner</title>
+  <title>LSM Battery Station</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body { font-family: sans-serif; background: #f0f2f5; text-align: center; padding: 20px; }
     .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
     #reader { width: 100%; min-height: 250px; background: #000; border-radius: 8px; margin-bottom: 10px; display: none; }
-    input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; }
-    button { padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; margin-top: 10px; }
-    .btn-scan { background: #3498db; width: 100%; }
+    input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;}
+    button { padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; margin-top: 10px; width: 48%; }
+    .btn-scan { background: #3498db; width: 100% !important; }
     .btn-in { background: #27ae60; }
     .btn-out { background: #e67e22; }
-    #status { margin-top: 15px; font-weight: bold; }
+    #status { margin-top: 15px; font-weight: bold; min-height: 20px;}
+    .btn-container { display: flex; justify-content: space-between; }
   </style>
 </head>
 
@@ -30,7 +31,7 @@
       </div>
     </div>
 
-    <h2>🔋 <span style="color: #FF4500; font-weight: bold;">LSM</span> Battery Swaps by Somphone</h2>
+    <h2>🔋 <span style="color: #FF4500; font-weight: bold;">LSM</span> Swaps</h2>
 
     <div id="reader"></div>
     <button id="scanBtn" class="btn-scan" onclick="toggleCamera()">📷 OPEN SCANNER</button>
@@ -40,14 +41,19 @@
     <input type="number" id="mil" placeholder="Mileage">
 
     <div class="btn-container">
-      <button id="btnIn" class="btn-in" onclick="process('IN')">LOG IN</button>
-      <button id="btnOut" class="btn-out" onclick="process('OUT')">LOG OUT</button>
+      <button type="button" class="btn-in" onclick="process('IN')">LOG IN</button>
+      <button type="button" class="btn-out" onclick="process('OUT')">LOG OUT</button>
     </div>
 
     <div id="status">Ready</div>
   </div>
 
   <script>
+    // 1. Initialize Supabase
+    const supabaseUrl = 'https://bdcwfgutqnfhacanswlk.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A';
+    const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
     let scanner;
     let isScanning = false;
 
@@ -87,100 +93,78 @@
       if (scanner) scanner.stop().catch(e => console.log(e));
     }
 
-// Initialize Supabase (Replace with your actual keys from Supabase Settings > API)
-const supabaseUrl = 'https://bdcwfgutqnfhacanswlk.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A';
-const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    async function process(type) {
+      const status = document.getElementById('status');
+      const bid = document.getElementById('bid').value.trim();
+      const vno = document.getElementById('vno').value.trim();
+      const mil = document.getElementById('mil').value.trim();
 
-async function process(type) {
-  const status = document.getElementById('status');
-  const bid = document.getElementById('bid').value.trim();
-  const vno = document.getElementById('vno').value.trim();
-  const mil = document.getElementById('mil').value.trim();
+      if (!bid) { status.innerText = "❌ Enter Battery ID"; return; }
 
-  // Basic validation before even touching the database
-  if (!bid) { status.innerText = "❌ Enter Battery ID"; return; }
+      status.innerText = "⏳ Connecting to Supabase...";
+      status.style.color = "orange";
 
-  status.innerText = "⏳ Connecting to Supabase...";
-  status.style.color = "orange";
+      const today = new Date().toISOString().split('T')[0];
+      const nowTime = new Date().toLocaleTimeString('en-GB');
 
-  const today = new Date().toISOString().split('T')[0];
-  const nowTime = new Date().toLocaleTimeString('en-GB'); // Format HH:MM:SS
+      if (type === 'IN') {
+        // Check if already IN
+        const { data: existing } = await _supabase
+          .from('battery_swaps')
+          .select('id')
+          .eq('battery_id', bid)
+          .is('time_out', null);
 
-  if (type === 'IN') {
-    // --- LOGIC FOR IN ---
-    // 1. Check if it's already IN (find row where time_out is null)
-    const { data: existing } = await supabase
-      .from('battery_swaps')
-      .select('id')
-      .eq('battery_id', bid)
-      .is('time_out', null);
+        if (existing && existing.length > 0) {
+          status.innerText = "⚠️ BLOCKED: Already IN!";
+          status.style.color = "red";
+          return;
+        }
 
-    if (existing && existing.length > 0) {
-      status.innerText = "⚠️ BLOCKED: Already IN the shop!";
-      status.style.color = "red";
-      return;
+        const { error } = await _supabase
+          .from('battery_swaps')
+          .insert([{ battery_id: bid, vehicle_in: vno, mileage_in: mil, date_in: today, time_in: nowTime }]);
+
+        handleResponse(error, "Logged IN", status);
+
+      } else {
+        // Find open record
+        const { data: records, error: fetchErr } = await _supabase
+          .from('battery_swaps')
+          .select('id')
+          .eq('battery_id', bid)
+          .is('time_out', null)
+          .order('id', { ascending: false })
+          .limit(1);
+
+        if (fetchErr || !records || records.length === 0) {
+          status.innerText = "⚠️ BLOCKED: Not IN shop!";
+          status.style.color = "red";
+          return;
+        }
+
+        const { error: updateErr } = await _supabase
+          .from('battery_swaps')
+          .update({ vehicle_out: vno, mileage_out: mil, date_out: today, time_out: nowTime })
+          .eq('id', records[0].id);
+
+        handleResponse(updateErr, "Logged OUT", status);
+      }
     }
 
-    // 2. Insert new record
-    const { error } = await supabase
-      .from('battery_swaps')
-      .insert([{ 
-        battery_id: bid, 
-        vehicle_in: vno, 
-        mileage_in: mil, 
-        date_in: today, 
-        time_in: nowTime 
-      }]);
-
-    handleResponse(error, "Logged IN", status);
-
-  } else {
-    // --- LOGIC FOR OUT ---
-    // 1. Find the latest open record for this battery
-    const { data: records, error: fetchErr } = await supabase
-      .from('battery_swaps')
-      .select('id')
-      .eq('battery_id', bid)
-      .is('time_out', null)
-      .order('id', { ascending: false })
-      .limit(1);
-
-    if (fetchErr || !records || records.length === 0) {
-      status.innerText = "⚠️ BLOCKED: Battery is not IN the shop!";
-      status.style.color = "red";
-      return;
+    function handleResponse(error, action, statusEl) {
+      if (error) {
+        statusEl.innerText = "❌ DB Error: " + error.message;
+        statusEl.style.color = "red";
+      } else {
+        statusEl.innerText = "✅ " + action + "!";
+        statusEl.style.color = "green";
+        // Reset fields
+        document.getElementById('bid').value = "";
+        document.getElementById('vno').value = "";
+        document.getElementById('mil').value = "";
+      }
     }
-
-    // 2. Update that specific row with OUT details
-    const { error: updateErr } = await supabase
-      .from('battery_swaps')
-      .update({ 
-        vehicle_out: vno, 
-        mileage_out: mil, 
-        date_out: today, 
-        time_out: nowTime 
-      })
-      .eq('id', records[0].id);
-
-    handleResponse(updateErr, "Logged OUT", status);
-  }
-}
-
-// Helper to handle success/error messages
-function handleResponse(error, action, statusEl) {
-  if (error) {
-    statusEl.innerText = "❌ Database Error: " + error.message;
-    statusEl.style.color = "red";
-  } else {
-    statusEl.innerText = "✅ " + action + " Successfully!";
-    statusEl.style.color = "green";
-    beep();
-    // Clear inputs
-    document.getElementById('bid').value = "";
-    document.getElementById('vno').value = "";
-    document.getElementById('mil').value = "";
-  }
-}
+  </script>
 </body>
 </html>
