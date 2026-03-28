@@ -1,17 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta charset="UTF-8">
   <title>LSM Command Center</title>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: white; padding: 20px; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: white; padding: 20px; }
     .header { margin-bottom: 30px; text-align: center; }
     
-    /* Grid for the Big Numbers */
+    /* Statistics Grid */
     .stats-grid { 
       display: grid; 
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
       gap: 20px; 
       margin-bottom: 30px; 
     }
@@ -21,97 +21,154 @@
       padding: 25px; 
       border-radius: 15px; 
       text-align: center; 
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      transition: transform 0.3s ease;
     }
 
-    .stat-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #bdc3c7; margin-bottom: 10px; }
-    .stat-number { font-size: 54px; font-weight: 900; }
+    .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #95a5a6; margin-bottom: 10px; font-weight: bold; }
+    .stat-number { font-size: 50px; font-weight: 900; line-height: 1; }
 
-    /* Specific Colors */
-    .green { color: #2ecc71; border-bottom: 5px solid #2ecc71; } /* Batteries IN */
-    .red { color: #e74c3c; border-bottom: 5px solid #e74c3c; }   /* Batteries OUT */
-    .blue { color: #3498db; border-bottom: 5px solid #3498db; }  /* Total Swaps Today */
-    .black { color: #ffffff; background: #000; border-bottom: 5px solid #555; } /* Vehicle Stats */
+    /* Colors for Cards */
+    .green { color: #2ecc71; border-bottom: 5px solid #2ecc71; } 
+    .red { color: #e74c3c; border-bottom: 5px solid #e74c3c; }   
+    .blue { color: #3498db; border-bottom: 5px solid #3498db; }  
+    .black { background: #000; border: 1px solid #333; min-height: 180px; text-align: left; }
 
-    #live-feed { background: #333; border-radius: 10px; padding: 15px; max-width: 800px; margin: 0 auto; text-align: left; }
-    .feed-item { border-bottom: 1px solid #444; padding: 10px; font-size: 14px; }
+    /* Leaderboard Styles */
+    #vehicle-list { font-size: 14px; margin-top: 10px; max-height: 140px; overflow-y: auto; }
+    .leader-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; }
+    .leader-item:last-child { border-bottom: none; }
+    .v-id { color: #FF4500; font-weight: bold; }
+    .v-count { background: #333; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+
+    /* Activity Feed */
+    #live-feed { background: #222; border-radius: 10px; padding: 15px; max-width: 900px; margin: 0 auto; text-align: left; border: 1px solid #333; }
+    .feed-item { border-bottom: 1px solid #333; padding: 12px; font-size: 13px; color: #ccc; display: flex; justify-content: space-between; }
+    .feed-item b { color: #FF4500; }
   </style>
 </head>
 <body>
 
   <div class="header">
-    <h1 style="color: #FF4500; margin-bottom: 0;">LSM COMMAND CENTER</h1>
-    <div style="font-style: italic; color: #888;">Live Fleet Intelligence by Somphone</div>
+    <h1 style="color: #FF4500; margin-bottom: 5px; letter-spacing: 2px;">LSM COMMAND CENTER</h1>
+    <div style="font-style: italic; color: #7f8c8d; font-size: 14px;">Powered by Somphone &bull; Fleet Intelligence</div>
   </div>
 
   <div class="stats-grid">
     <div class="stat-card">
-      <div class="stat-label">Batteries Currently IN</div>
+      <div class="stat-label">Currently in Shop</div>
       <div id="count-in" class="stat-number green">0</div>
     </div>
 
     <div class="stat-card">
-      <div class="stat-label">Batteries Logged OUT</div>
+      <div class="stat-label">Dispatched Today</div>
       <div id="count-out" class="stat-number red">0</div>
     </div>
 
     <div class="stat-card">
-      <div class="stat-label">Total Swaps (Today)</div>
+      <div class="stat-label">Total Swaps (24H)</div>
       <div id="count-swaps" class="stat-number blue">0</div>
     </div>
 
     <div class="stat-card black">
-      <div class="stat-label" style="color: #aaa;">Vehicle Activity</div>
-      <div id="vehicle-stat" style="font-size: 18px; margin-top: 15px;">Loading...</div>
+      <div class="stat-label" style="color: #666; text-align: center;">Vehicle Activity Rank</div>
+      <div id="vehicle-list">
+        <div style="color: #444; text-align: center; padding-top: 20px;">Waiting for scans...</div>
+      </div>
     </div>
   </div>
 
-  <h3>Live Activity Stream</h3>
-  <div id="live-feed">Waiting for data...</div>
+  <h3 style="text-align: center; color: #555; text-transform: uppercase; font-size: 14px;">Live Activity Stream</h3>
+  <div id="live-feed">Connecting to LSM database...</div>
 
   <script>
+    // 1. DATABASE CONNECTION
     const supabaseUrl = 'https://bdcwfgutqnfhacanswlk.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A';
     const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
+    // 2. THE REFRESH ENGINE (Recalculates everything)
     async function refreshDashboard() {
       const today = new Date().toISOString().split('T')[0];
 
-      // A. Count Batteries IN (where time_out is NULL)
-      const { count: countIn } = await _supabase.from('battery_swaps').select('*', { count: 'exact', head: true }).is('time_out', null);
+      // A. Count Batteries IN (Still in the workshop)
+      const { count: countIn } = await _supabase
+        .from('battery_swaps')
+        .select('*', { count: 'exact', head: true })
+        .is('time_out', null);
       document.getElementById('count-in').innerText = countIn || 0;
 
-      // B. Count Batteries OUT (where time_out is NOT NULL)
-      const { count: countOut } = await _supabase.from('battery_swaps').select('*', { count: 'exact', head: true }).not('time_out', 'is', null).eq('date_out', today);
+      // B. Count Batteries OUT (Finished today)
+      const { count: countOut } = await _supabase
+        .from('battery_swaps')
+        .select('*', { count: 'exact', head: true })
+        .not('time_out', 'is', null)
+        .eq('date_out', today);
       document.getElementById('count-out').innerText = countOut || 0;
 
-      // C. Total Swaps (Everything today)
-      const { count: countTotal } = await _supabase.from('battery_swaps').select('*', { count: 'exact', head: true }).eq('date_in', today);
+      // C. Total Daily Swaps (Incoming logs today)
+      const { count: countTotal } = await _supabase
+        .from('battery_swaps')
+        .select('*', { count: 'exact', head: true })
+        .eq('date_in', today);
       document.getElementById('count-swaps').innerText = countTotal || 0;
 
-      // D. Vehicle Swaps (From your new VIEW)
-      const { data: vData } = await _supabase.from('vehicle_swap_counts').select('*').order('total_swaps', { ascending: false }).limit(1);
-      if (vData && vData.length > 0) {
-        document.getElementById('vehicle-stat').innerHTML = `Top: <b>${vData[0].vehicle_no}</b><br><span style="font-size:32px;">${vData[0].total_swaps} Swaps</span>`;
+      // D. NEW: Vehicle Activity Leaderboard
+      const { data: vData, error: vErr } = await _supabase
+        .from('vehicle_swap_counts')
+        .select('*')
+        .order('total_swaps', { ascending: false });
+
+      const vList = document.getElementById('vehicle-list');
+      if (!vErr && vData && vData.length > 0) {
+        let listHtml = "";
+        vData.forEach(vh => {
+          listHtml += `
+            <div class="leader-item">
+              <span class="v-id">Vehicle ${vh.vehicle_no}</span> 
+              <span class="v-count">${vh.total_swaps} Swaps</span>
+            </div>`;
+        });
+        vList.innerHTML = listHtml;
       }
     }
 
-    // Live Listener
-    _supabase.channel('custom-all-channel')
+    // 3. THE LIVE LISTENER (Detects changes instantly)
+    _supabase.channel('lsm-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'battery_swaps' }, (payload) => {
-          refreshDashboard();
-          updateFeed(payload.new || payload.old);
-      }).subscribe();
+          console.log("Change detected:", payload);
+          refreshDashboard(); // Trigger math update
+          updateFeed(payload.new || payload.old); // Trigger text update
+      })
+      .subscribe();
 
+    // 4. THE ACTIVITY FEED (Visual logs)
     function updateFeed(data) {
         const feed = document.getElementById('live-feed');
+        if (feed.innerText.includes("Connecting")) feed.innerHTML = "";
+        
+        const timestamp = new Date().toLocaleTimeString('en-GB', { hour12: false });
         const item = document.createElement('div');
         item.className = 'feed-item';
-        item.innerHTML = `[${new Date().toLocaleTimeString()}] <b>${data.battery_id}</b> - Action detected for Vehicle ${data.vehicle_in || '?'}`;
+        
+        // Custom message based on what happened
+        let msg = `Battery <b>${data.battery_id}</b> activity detected.`;
+        if (data.time_out) {
+            msg = `Battery <b>${data.battery_id}</b> Logged OUT (Vehicle ${data.vehicle_out})`;
+        } else if (data.time_in) {
+            msg = `Battery <b>${data.battery_id}</b> Logged IN (Vehicle ${data.vehicle_in})`;
+        }
+
+        item.innerHTML = `<span>${msg}</span> <span style="color:#555;">${timestamp}</span>`;
         feed.prepend(item);
+        
+        // Keep only last 10 items to save memory
+        if (feed.children.length > 10) feed.lastElementChild.remove();
     }
 
-    refreshDashboard(); // Initial load
+    // INITIAL STARTUP
+    refreshDashboard();
+    console.log("LSM Dashboard Initialized.");
   </script>
 </body>
 </html>
