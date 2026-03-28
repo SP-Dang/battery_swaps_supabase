@@ -107,18 +107,20 @@
       status.style.color = "orange";
 
       // =========================================================
-      // STEP 1: NEW - "MASTER VERIFICATION" GATEKEEPER
+      // STEP 1: IMPROVED GATEKEEPER (Case Insensitive + Flexible)
       // =========================================================
       const { data: masterData, error: masterErr } = await _supabase
-        .from('battery_master') // The master table we just made
+        .from('battery_master') 
         .select('battery_id')
-        .eq('battery_id', bid)
-        .single(); // We only expect one result
+        .ilike('battery_id', bid) // Changed to .ilike for case-insensitivity
+        .maybeSingle();           // Changed to .maybeSingle to prevent "strict" errors
 
+      // Check if there was a real database error OR if no data was found
       if (masterErr || !masterData) {
+        console.error("Supabase Error:", masterErr); // This helps you debug in the browser
         status.innerText = "❌ REJECTED: Battery ID not found in Master List!";
         status.style.color = "red";
-        return; // STOP HERE. Do not proceed to LOG IN/OUT.
+        return; 
       }
       // =========================================================
 
