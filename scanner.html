@@ -22,16 +22,17 @@
 
 <body>
   <div class="card">
-    <div style="margin-bottom: 15px;">
-      <span style="font-size: 36px; font-weight: 900; color: #2c3e50;">L</span>
-      <span style="font-size: 36px; font-weight: 900; color: #FF4500; margin-left: -5px;">S</span>
-      <span style="font-size: 36px; font-weight: 900; color: #2c3e50; margin-left: -5px;">M</span>
-      <div style="font-size: 10px; color: #7f8c8d; letter-spacing: 2px; margin-top: -5px; font-weight: bold;">
+    <div style="margin-bottom: 25px;">
+      <span style="font-size: 38px; font-weight: 900; color: #FF4500;">L</span>
+      <span style="font-size: 38px; font-weight: 900; color: #FF4500; margin-left: -5px;">S</span>
+      <span style="font-size: 38px; font-weight: 900; color: #FF4500; margin-left: -5px;">M</span>
+      <div style="font-size: 11px; color: #2c3e50; letter-spacing: 2px; margin-top: -5px; font-weight: bold;">
         LAO SMART MOBILITY
       </div>
+      <div style="font-size: 10px; color: #7f8c8d; font-style: italic; margin-top: 4px;">
+        Powered by Somphone
+      </div>
     </div>
-
-    <h2>🔋 <span style="color: #FF4500; font-weight: bold;">LSM</span> Swaps</h2>
 
     <div id="reader"></div>
     <button id="scanBtn" class="btn-scan" onclick="toggleCamera()">📷 OPEN SCANNER</button>
@@ -93,6 +94,7 @@
       if (scanner) scanner.stop().catch(e => console.log(e));
     }
 
+    // THE "ENGINE" THAT POWERS THE APP
     async function process(type) {
       const status = document.getElementById('status');
       const bid = document.getElementById('bid').value.trim();
@@ -101,14 +103,31 @@
 
       if (!bid) { status.innerText = "❌ Enter Battery ID"; return; }
 
-      status.innerText = "⏳ Connecting to Supabase...";
+      status.innerText = "⏳ Authenticating with Supabase...";
       status.style.color = "orange";
+
+      // =========================================================
+      // STEP 1: NEW - "MASTER VERIFICATION" GATEKEEPER
+      // =========================================================
+      const { data: masterData, error: masterErr } = await _supabase
+        .from('battery_master') // The master table we just made
+        .select('battery_id')
+        .eq('battery_id', bid)
+        .single(); // We only expect one result
+
+      if (masterErr || !masterData) {
+        status.innerText = "❌ REJECTED: Battery ID not found in Master List!";
+        status.style.color = "red";
+        return; // STOP HERE. Do not proceed to LOG IN/OUT.
+      }
+      // =========================================================
 
       const today = new Date().toISOString().split('T')[0];
       const nowTime = new Date().toLocaleTimeString('en-GB');
 
+      // STEP 2: PROCEED WITH LOGGING (Now that ID is valid)
       if (type === 'IN') {
-        // Check if already IN
+        // Logic for LOG IN (Same as before)
         const { data: existing } = await _supabase
           .from('battery_swaps')
           .select('id')
@@ -116,7 +135,7 @@
           .is('time_out', null);
 
         if (existing && existing.length > 0) {
-          status.innerText = "⚠️ BLOCKED: Already IN!";
+          status.innerText = "⚠️ BLOCKED: Already IN the shop!";
           status.style.color = "red";
           return;
         }
@@ -128,7 +147,7 @@
         handleResponse(error, "Logged IN", status);
 
       } else {
-        // Find open record
+        // Logic for LOG OUT (Same as before)
         const { data: records, error: fetchErr } = await _supabase
           .from('battery_swaps')
           .select('id')
