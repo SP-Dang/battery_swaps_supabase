@@ -2,67 +2,44 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>LSM Battery Control Panel</title>
+<title>LSM Battery Dashboard V2</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{font-family:sans-serif;background:#f0f2f5;padding:20px}
-.container{max-width:1000px;margin:auto}
-.card{background:#fff;padding:20px;border-radius:12px;margin-bottom:15px}
+body{font-family:sans-serif;background:#f4f6f8;margin:0}
+.container{max-width:1100px;margin:auto;padding:20px}
 
-h2{margin-bottom:10px}
+.nav{
+  display:flex;
+  gap:10px;
+  margin-bottom:15px;
+}
+.nav button{
+  flex:1;
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:bold;
+  background:#ddd;
+}
+.nav button.active{background:#3498db;color:#fff}
+
+.card{background:#fff;padding:20px;border-radius:12px;margin-bottom:15px}
 
 .row{display:flex;gap:10px;flex-wrap:wrap}
 .row > *{flex:1}
 
-.stat{
-  text-align:center;
-  padding:15px;
-  border-radius:10px;
-  background:#ecf0f1;
-  font-weight:bold
-}
+.stat{text-align:center;padding:15px;border-radius:10px;background:#ecf0f1;font-weight:bold}
 
-.green{color:#27ae60}
-.orange{color:#e67e22}
-.blue{color:#3498db}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{border-bottom:1px solid #ddd;padding:8px}
 
-input,select{
-  width:100%;
-  padding:10px;
-  border-radius:6px;
-  border:1px solid #ccc
-}
+button{cursor:pointer}
 
-button{
-  padding:10px;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-  font-weight:bold;
-}
-
-.refresh{background:#3498db;color:white}
-.export{background:#2ecc71;color:white}
-
-.table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:10px
-}
-
-.table th,.table td{
-  border-bottom:1px solid #ddd;
-  padding:8px;
-}
-
-.badge-in{color:green;font-weight:bold}
-.badge-out{color:#e67e22;font-weight:bold}
-
-.alert{font-weight:bold}
 </style>
 </head>
 
@@ -70,48 +47,74 @@ button{
 
 <div class="container">
 
-<!-- HEADER -->
+<!-- NAV -->
+<div class="nav">
+<button onclick="showTab('overview')" id="tab-overview" class="active">Overview</button>
+<button onclick="showTab('transactions')" id="tab-transactions">Transactions</button>
+<button onclick="showTab('analytics')" id="tab-analytics">Analytics</button>
+</div>
+
+<!-- OVERVIEW -->
+<div id="overview" class="tab">
+
 <div class="card">
-<h2>🔋 LSM Battery Control Panel</h2>
+<div class="row">
+<div class="stat" id="inCount">IN: 0</div>
+<div class="stat" id="outCount">OUT: 0</div>
+<div class="stat" id="todayCount">Today: 0</div>
+</div>
+</div>
+
+<div class="card">
+<h3>🚨 Alerts</h3>
+<div id="alerts">Checking...</div>
+</div>
+
+<div class="card">
+<canvas id="smallChart"></canvas>
+</div>
+
+</div>
+
+<!-- TRANSACTIONS -->
+<div id="transactions" class="tab" style="display:none">
+
+<div class="card">
+<div class="row">
+<input type="date" id="fromDate">
+<input type="date" id="toDate">
+</div>
 
 <div class="row">
-<input id="search" placeholder="Search Battery ID">
+<input id="search" placeholder="Search Battery">
 <select id="filter">
-  <option value="">All</option>
-  <option value="IN">IN Shop</option>
-  <option value="OUT">OUT</option>
+<option value="">All</option>
+<option value="IN">IN</option>
+<option value="OUT">OUT</option>
 </select>
 </div>
 
 <div class="row">
-<button class="refresh" onclick="loadData()">Refresh</button>
-<button class="export" onclick="exportCSV()">Export CSV</button>
-</div>
-</div>
-
-<!-- ALERTS -->
-<div class="card">
-<h3>🚨 System Alerts</h3>
-<div id="alerts" class="alert">Checking...</div>
+<button onclick="loadTransactions()">Load</button>
+<button onclick="nextPage()">Next</button>
+<button onclick="prevPage()">Prev</button>
 </div>
 
-<!-- STATS -->
-<div class="card">
-<div class="row">
-<div class="stat green" id="inCount">IN: 0</div>
-<div class="stat orange" id="outCount">OUT: 0</div>
-<div class="stat blue" id="todayCount">Today: 0</div>
-</div>
 </div>
 
-<!-- CHART -->
-<div class="card">
-<canvas id="chart"></canvas>
+<div class="card" id="tableContainer"></div>
+
 </div>
 
-<!-- TABLE -->
+<!-- ANALYTICS -->
+<div id="analytics" class="tab" style="display:none">
+
 <div class="card">
-<div id="tableContainer">Loading...</div>
+<canvas id="mainChart"></canvas>
+</div>
+
+<div class="card" id="topBatteries"></div>
+
 </div>
 
 </div>
@@ -122,194 +125,173 @@ const db = supabase.createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A"
 );
 
+let page = 0;
+let pageSize = 50;
 let dataStore = [];
-let chart = null;
-let refreshTimer = null;
+let smallChart, mainChart;
 
-// ===== SAFE JSON PARSE =====
-function extractCode(text){
-  try{
-    const j = JSON.parse(text);
-    return j.code || text;
-  }catch{
-    return text || "-";
-  }
+// ===== TAB =====
+function showTab(tab){
+  document.querySelectorAll(".tab").forEach(t=>t.style.display="none");
+  document.getElementById(tab).style.display="block";
+
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+  document.getElementById("tab-"+tab).classList.add("active");
 }
 
-// ===== LOAD DATA =====
-async function loadData(){
+// ===== UTIL =====
+function extractCode(text){
   try{
-    const {data,error} = await db
-      .from("battery_swaps")
-      .select("*")
-      .order("id",{ascending:false})
-      .limit(300);
+    return JSON.parse(text).code || text;
+  }catch{return text}
+}
 
-    if(error) throw error;
+// ===== OVERVIEW =====
+async function loadOverview(){
+  const {data} = await db.from("battery_swaps").select("*").limit(200);
 
-    dataStore = data || [];
+  let inCount=0,outCount=0,todayCount=0;
+  const today=new Date().toISOString().split("T")[0];
+  const map={};
 
-    renderTable();
-    updateStats();
-    drawChart();
-    checkAlerts();
+  data.forEach(r=>{
+    if(r.time_out===null) inCount++; else outCount++;
+    if(r.date_in===today) todayCount++;
 
-  }catch(err){
-    console.error(err);
-    document.getElementById("tableContainer").innerHTML =
-      "<div style='color:red'>Error loading data</div>";
-  }
+    if(r.date_in){
+      map[r.date_in]=(map[r.date_in]||0)+1;
+    }
+  });
+
+  document.getElementById("inCount").innerText="IN: "+inCount;
+  document.getElementById("outCount").innerText="OUT: "+outCount;
+  document.getElementById("todayCount").innerText="Today: "+todayCount;
+
+  // chart
+  const labels=Object.keys(map);
+  const values=labels.map(k=>map[k]);
+
+  if(smallChart) smallChart.destroy();
+  smallChart=new Chart(document.getElementById("smallChart"),{
+    type:"line",
+    data:{labels,datasets:[{data:values,label:"Daily"}]}
+  });
+
+  // alerts
+  let alerts=[];
+  const now=new Date();
+
+  data.forEach(r=>{
+    if(r.time_out===null && r.date_in && r.time_in){
+      const dt=new Date(r.date_in+"T"+r.time_in);
+      const h=(now-dt)/3600000;
+      if(h>24) alerts.push(extractCode(r.battery_id));
+    }
+  });
+
+  document.getElementById("alerts").innerHTML =
+    alerts.length ? "⚠️ "+alerts.join(", ") : "✅ OK";
+}
+
+// ===== TRANSACTIONS =====
+async function loadTransactions(){
+
+  let query = db.from("battery_swaps").select("*");
+
+  const from=document.getElementById("fromDate").value;
+  const to=document.getElementById("toDate").value;
+
+  if(from) query=query.gte("date_in",from);
+  if(to) query=query.lte("date_in",to);
+
+  query=query.order("id",{ascending:false})
+             .range(page*pageSize,(page+1)*pageSize-1);
+
+  const {data} = await query;
+
+  dataStore=data;
+
+  renderTable();
 }
 
 // ===== TABLE =====
 function renderTable(){
 
-  const search = (document.getElementById("search").value || "").toUpperCase();
-  const filter = document.getElementById("filter").value;
+  const search=document.getElementById("search").value.toUpperCase();
+  const filter=document.getElementById("filter").value;
 
-  let html = `
-  <table class="table">
-  <tr>
-    <th>Battery</th>
-    <th>IN</th>
-    <th>OUT</th>
-    <th>Status</th>
-    <th>Date</th>
-  </tr>`;
+  let html="<table class='table'><tr><th>Battery</th><th>IN</th><th>OUT</th><th>Status</th></tr>";
 
   dataStore.forEach(r=>{
-    const code = extractCode(r.battery_id);
+    const code=extractCode(r.battery_id);
 
     if(search && !code.includes(search)) return;
-    if(filter==="IN" && r.time_out !== null) return;
-    if(filter==="OUT" && r.time_out === null) return;
+    if(filter==="IN" && r.time_out!==null) return;
+    if(filter==="OUT" && r.time_out===null) return;
 
-    const status = r.time_out === null
-      ? `<span class="badge-in">IN</span>`
-      : `<span class="badge-out">OUT</span>`;
-
-    html += `
+    html+=`
     <tr>
-      <td>${code}</td>
-      <td>${r.vehicle_in || "-"}</td>
-      <td>${r.vehicle_out || "-"}</td>
-      <td>${status}</td>
-      <td>${r.date_in || "-"}</td>
+    <td>${code}</td>
+    <td>${r.vehicle_in||"-"}</td>
+    <td>${r.vehicle_out||"-"}</td>
+    <td>${r.time_out===null?"IN":"OUT"}</td>
     </tr>`;
   });
 
-  html += "</table>";
-  document.getElementById("tableContainer").innerHTML = html;
+  html+="</table>";
+
+  document.getElementById("tableContainer").innerHTML=html;
 }
 
-// ===== STATS =====
-function updateStats(){
+// ===== PAGINATION =====
+function nextPage(){page++;loadTransactions();}
+function prevPage(){if(page>0){page--;loadTransactions();}}
 
-  let inCount = 0;
-  let outCount = 0;
-  let today = new Date().toISOString().split("T")[0];
-  let todayCount = 0;
+// ===== ANALYTICS =====
+async function loadAnalytics(){
 
-  dataStore.forEach(r=>{
-    if(r.time_out === null) inCount++;
-    else outCount++;
+  const {data}=await db.from("battery_swaps").select("*");
 
-    if(r.date_in === today) todayCount++;
-  });
+  const map={};
+  const batteryMap={};
 
-  document.getElementById("inCount").innerText = "IN: " + inCount;
-  document.getElementById("outCount").innerText = "OUT: " + outCount;
-  document.getElementById("todayCount").innerText = "Today: " + todayCount;
-}
-
-// ===== ALERTS =====
-function checkAlerts(){
-
-  const now = new Date();
-  let alerts = [];
-
-  dataStore.forEach(r=>{
-    if(r.time_out === null && r.date_in && r.time_in){
-      const dt = new Date(r.date_in + "T" + r.time_in);
-      const hours = (now - dt) / 3600000;
-
-      if(hours > 24){
-        alerts.push(`⚠️ ${extractCode(r.battery_id)} stuck > 24h`);
-      }
+  data.forEach(r=>{
+    if(r.date_in){
+      map[r.date_in]=(map[r.date_in]||0)+1;
     }
+
+    const code=extractCode(r.battery_id);
+    batteryMap[code]=(batteryMap[code]||0)+1;
   });
 
-  const box = document.getElementById("alerts");
+  const labels=Object.keys(map);
+  const values=labels.map(k=>map[k]);
 
-  if(alerts.length === 0){
-    box.innerText = "✅ No issues";
-    box.style.color = "green";
-  }else{
-    box.innerHTML = alerts.join("<br>");
-    box.style.color = "red";
-  }
-}
-
-// ===== CHART =====
-function drawChart(){
-
-  const map = {};
-
-  dataStore.forEach(r=>{
-    if(!r.date_in) return;
-    map[r.date_in] = (map[r.date_in] || 0) + 1;
+  if(mainChart) mainChart.destroy();
+  mainChart=new Chart(document.getElementById("mainChart"),{
+    type:"bar",
+    data:{labels,datasets:[{data:values,label:"Swaps"}]}
   });
 
-  const labels = Object.keys(map).sort();
-  const values = labels.map(d=>map[d]);
+  // top batteries
+  let sorted=Object.entries(batteryMap)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,5);
 
-  if(chart) chart.destroy();
-
-  chart = new Chart(document.getElementById("chart"), {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [{
-        label: "Daily Swaps",
-        data: values
-      }]
-    }
-  });
-}
-
-// ===== EXPORT =====
-function exportCSV(){
-  let csv = "Battery,IN,OUT,Date\n";
-
-  dataStore.forEach(r=>{
-    const code = extractCode(r.battery_id);
-    csv += `${code},${r.vehicle_in},${r.vehicle_out},${r.date_in}\n`;
+  let html="<h3>Top Batteries</h3>";
+  sorted.forEach(([c,v])=>{
+    html+=`<div>${c} (${v})</div>`;
   });
 
-  const blob = new Blob([csv], {type:"text/csv"});
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "battery_data.csv";
-  a.click();
-}
-
-// ===== EVENTS =====
-document.getElementById("search").oninput = renderTable;
-document.getElementById("filter").onchange = renderTable;
-
-// ===== SAFE AUTO REFRESH =====
-function startAutoRefresh(){
-  if(refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(()=>{
-    loadData();
-  }, 5000);
+  document.getElementById("topBatteries").innerHTML=html;
 }
 
 // ===== INIT =====
-loadData();
-startAutoRefresh();
+loadOverview();
+loadTransactions();
+loadAnalytics();
+
+setInterval(loadOverview,5000);
 </script>
 
 </body>
