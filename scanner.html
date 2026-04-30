@@ -50,9 +50,7 @@ const db = supabase.createClient(
 );
 
 // ===== STATE =====
-let scanner = null;
-let scanning = false;
-let rawData = null;
+let scanner=null, scanning=false, rawData=null;
 
 // ===== UI =====
 function setStatus(msg,color="black"){
@@ -74,7 +72,7 @@ function getNow(){
   };
 }
 
-// ===== SCANNER CLOSE =====
+// ===== CLOSE SCANNER =====
 async function closeScanner(){
   const reader=document.getElementById("reader");
 
@@ -125,7 +123,6 @@ document.getElementById("scanBtn").onclick=async()=>{
         document.getElementById("bid").value=code;
         setStatus("✅ Scanned: "+code,"green");
 
-        // auto close camera
         setTimeout(()=>closeScanner(),200);
       }
     );
@@ -137,7 +134,7 @@ document.getElementById("scanBtn").onclick=async()=>{
   }
 };
 
-// ===== MAIN PROCESS =====
+// ===== MAIN =====
 async function process(type){
 
   const bid=document.getElementById("bid").value.trim().toUpperCase();
@@ -173,7 +170,7 @@ async function process(type){
         .from("battery_swaps")
         .select("id")
         .ilike("battery_id", `%${bid}%`)
-        .eq("status","IN");
+        .is("time_out", null);
 
       if(exist && exist.length>0){
         throw new Error("Battery already IN");
@@ -181,9 +178,9 @@ async function process(type){
 
       const {error}=await db.from("battery_swaps").insert([{
         battery_id:raw,
+        model:battery.model,
         vehicle_in:vno,
         mileage_in:mil,
-        status:"IN",
         date_in:now.date,
         time_in:now.time
       }]);
@@ -198,7 +195,7 @@ async function process(type){
         .from("battery_swaps")
         .select("*")
         .ilike("battery_id", `%${bid}%`)
-        .eq("status","IN")
+        .is("time_out", null)
         .limit(1);
 
       if(!exist || exist.length===0){
@@ -210,7 +207,6 @@ async function process(type){
         .update({
           vehicle_out:vno,
           mileage_out:mil,
-          status:"OUT",
           date_out:now.date,
           time_out:now.time
         })
