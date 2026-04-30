@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>LSM Battery Station</title>
+<title>Battery Swap</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -10,261 +10,186 @@
 
 <style>
 body{font-family:sans-serif;background:#f0f2f5;text-align:center;padding:20px}
-.card{background:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.1);max-width:420px;margin:auto}
+.card{background:#fff;padding:20px;border-radius:12px;max-width:400px;margin:auto}
 #reader{width:100%;min-height:250px;background:#000;border-radius:8px;margin-bottom:10px;display:none}
-input,select{width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:5px;box-sizing:border-box}
+input{width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:5px}
 button{padding:12px;border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer;margin-top:10px;width:48%}
 .btn-scan{background:#3498db;width:100%!important}
 .btn-in{background:#27ae60}
 .btn-out{background:#e67e22}
-#status{margin-top:15px;font-weight:700;min-height:20px}
 .btn-container{display:flex;justify-content:space-between}
+#status{margin-top:15px;font-weight:700}
 </style>
 </head>
 
 <body>
 
 <div class="card">
-<h2>🔋 LSM Battery Swap</h2>
+<h2>🔋 Battery Swap</h2>
 
 <div id="reader"></div>
-<button id="scanBtn" class="btn-scan">📷 OPEN SCANNER</button>
+<button id="scanBtn" class="btn-scan">📷 SCAN</button>
 
-<input type="text" id="operator" placeholder="Operator Name">
-<input type="text" id="bid" placeholder="Battery ID">
-<input type="text" id="vno" placeholder="Vehicle No">
-<input type="number" id="mil" placeholder="Mileage">
-
-<select id="condition">
-  <option value="">Battery Condition</option>
-  <option value="GOOD">Good</option>
-  <option value="DAMAGED">Damaged</option>
-  <option value="CHARGING">Charging</option>
-</select>
+<input id="bid" placeholder="Battery ID">
+<input id="vno" placeholder="Vehicle No">
+<input id="mil" type="number" placeholder="Mileage">
 
 <div class="btn-container">
-  <button class="btn-in" id="btnIn">LOG IN</button>
-  <button class="btn-out" id="btnOut">LOG OUT</button>
+  <button class="btn-in" onclick="process('IN')">IN</button>
+  <button class="btn-out" onclick="process('OUT')">OUT</button>
 </div>
 
 <div id="status">Ready</div>
 </div>
 
 <script>
-// ================= CONFIG =================
-const SUPABASE_URL = "https://bdcwfgutqnfhacanswlk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A";
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = supabase.createClient(
+  "https://bdcwfgutqnfhacanswlk.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A"
+);
 
-// ================= STATE =================
-let scanner = null;
-let scanning = false;
-let rawBatteryData = null;
+let scanner=null, scanning=false, rawData=null;
 
-// ================= UI =================
-const statusBox = document.getElementById("status");
-
-function setStatus(msg, color="black"){
-  statusBox.innerText = msg;
-  statusBox.style.color = color;
+function setStatus(msg,color="black"){
+  const s=document.getElementById("status");
+  s.innerText=msg;
+  s.style.color=color;
 }
 
-function lockUI(lock=true){
-  document.querySelectorAll("button").forEach(b => b.disabled = lock);
-}
-
-// ================= TIME =================
 function getNow(){
-  const now = new Date();
+  const n=new Date();
   return {
-    date: now.toLocaleDateString("en-CA"),
-    time: now.toLocaleTimeString("en-GB")
+    date:n.toLocaleDateString("en-CA"),
+    time:n.toLocaleTimeString("en-GB")
   };
 }
 
-// ================= VALIDATION =================
-function validateInputs(){
-  const operator = document.getElementById("operator").value.trim();
-  const bid = document.getElementById("bid").value.trim();
-  const vno = document.getElementById("vno").value.trim();
-  const mil = document.getElementById("mil").value.trim();
-
-  if(!operator) return "Enter Operator Name";
-  if(!bid) return "Enter Battery ID";
-  if(!vno) return "Enter Vehicle No";
-  if(!mil) return "Enter Mileage";
-
-  return null;
-}
-
-// ================= SCANNER =================
-document.getElementById("scanBtn").onclick = async () => {
-  const reader = document.getElementById("reader");
+// ===== SCANNER =====
+document.getElementById("scanBtn").onclick=async()=>{
+  const reader=document.getElementById("reader");
 
   if(scanning){
-    await stopScanner();
-    reader.style.display = "none";
-    setStatus("Scanner closed");
+    await scanner.stop(); await scanner.clear();
+    scanner=null; scanning=false;
+    reader.style.display="none";
     return;
   }
 
-  reader.style.display = "block";
-  scanner = new Html5Qrcode("reader");
+  reader.style.display="block";
+  scanner=new Html5Qrcode("reader");
 
-  try{
-    await scanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 }},
-      (decoded) => {
+  await scanner.start(
+    {facingMode:"environment"},
+    {fps:10,qrbox:{width:250,height:250}},
+    (decoded)=>{
+      rawData=decoded;
 
-        rawBatteryData = decoded;
+      let code=decoded;
+      try{
+        const j=JSON.parse(decoded);
+        if(j.code) code=j.code;
+      }catch(e){}
 
-        let code = decoded;
+      code=code.trim().toUpperCase();
 
-        try{
-          const parsed = JSON.parse(decoded);
-          if(parsed.code){
-            code = parsed.code;
-          }
-        }catch(e){}
+      document.getElementById("bid").value=code;
+      setStatus("Scanned: "+code,"green");
 
-        code = code.toUpperCase().trim();
+      scanner.stop(); scanner.clear();
+      scanning=false;
+      reader.style.display="none";
+    }
+  );
 
-        document.getElementById("bid").value = code;
-
-        setStatus("✅ Scanned: " + code, "green");
-
-        stopScanner();
-      }
-    );
-    scanning = true;
-  }catch(err){
-    setStatus("Camera error: " + err, "red");
-  }
+  scanning=true;
 };
 
-async function stopScanner(){
-  if(scanner){
-    await scanner.stop();
-    await scanner.clear();
-    scanner = null;
-  }
-  scanning = false;
-}
-
-// ================= CORE =================
+// ===== MAIN =====
 async function process(type){
 
-  const errorMsg = validateInputs();
-  if(errorMsg){
-    setStatus("❌ " + errorMsg, "red");
-    return;
-  }
+  const bid=document.getElementById("bid").value.trim().toUpperCase();
+  const vno=document.getElementById("vno").value.trim();
+  const mil=document.getElementById("mil").value.trim();
 
-  lockUI(true);
-  setStatus("⏳ Processing...", "orange");
+  if(!bid) return setStatus("Enter Battery ID","red");
+  if(!vno) return setStatus("Enter Vehicle","red");
+  if(!mil) return setStatus("Enter Mileage","red");
+
+  const raw = rawData || JSON.stringify({code:bid});
+  const now=getNow();
 
   try{
-    const bidDisplay = document.getElementById("bid").value.trim();
-    const bidRaw = rawBatteryData || JSON.stringify({code: bidDisplay});
 
-    const vno = document.getElementById("vno").value.trim();
-    const mil = document.getElementById("mil").value.trim();
-    const operator = document.getElementById("operator").value.trim();
-    const condition = document.getElementById("condition").value;
-
-    const now = getNow();
-
-    // ===== VALIDATE BATTERY =====
-    const { data: battery, error: err1 } = await db
+    // ==== CHECK MASTER ====
+    const {data:battery,error:e1}=await db
       .from("battery_master")
-      .select("battery_id, model")
-      .eq("battery_id->>code", bidDisplay)
-      .single();
+      .select("*")
+      .ilike("battery_id", `%"code":"${bid}"%`)
+      .maybeSingle();
 
-    if(err1 || !battery){
-      throw new Error("Battery not found in master list");
-    }
+    if(e1 || !battery) throw new Error("Battery not found");
 
-    if(type === "IN"){
+    if(type==="IN"){
 
-      const { data: existing } = await db
+      const {data:exist}=await db
         .from("battery_swaps")
         .select("id")
-        .eq("battery_id->>code", bidDisplay)
-        .eq("status", "IN");
+        .ilike("battery_id", `%"code":"${bid}"%`)
+        .eq("status","IN");
 
-      if(existing && existing.length > 0){
-        throw new Error("Battery already IN");
-      }
+      if(exist && exist.length>0)
+        throw new Error("Already IN");
 
-      const { error } = await db.from("battery_swaps").insert([{
-        battery_id: bidRaw,
-        model: battery.model,
-        vehicle_in: vno,
-        mileage_in: mil,
-        operator,
-        condition_in: condition,
-        status: "IN",
-        date_in: now.date,
-        time_in: now.time
+      const {error}=await db.from("battery_swaps").insert([{
+        battery_id:raw,
+        vehicle_in:vno,
+        mileage_in:mil,
+        status:"IN",
+        date_in:now.date,
+        time_in:now.time
       }]);
 
       if(error) throw error;
 
-      setStatus("✅ Logged IN", "green");
+      setStatus("Logged IN","green");
 
-    } else {
+    }else{
 
-      const { data: existing } = await db
+      const {data:exist}=await db
         .from("battery_swaps")
         .select("*")
-        .eq("battery_id->>code", bidDisplay)
-        .eq("status", "IN")
-        .order("id", { ascending:false })
+        .ilike("battery_id", `%"code":"${bid}"%`)
+        .eq("status","IN")
         .limit(1);
 
-      if(!existing || existing.length === 0){
-        throw new Error("Battery not IN shop");
-      }
+      if(!exist || exist.length===0)
+        throw new Error("Not IN");
 
-      const record = existing[0];
-
-      const { error } = await db
+      const {error}=await db
         .from("battery_swaps")
         .update({
-          vehicle_out: vno,
-          mileage_out: mil,
-          condition_out: condition,
-          status: "OUT",
-          date_out: now.date,
-          time_out: now.time
+          vehicle_out:vno,
+          mileage_out:mil,
+          status:"OUT",
+          date_out:now.date,
+          time_out:now.time
         })
-        .eq("id", record.id);
+        .eq("id",exist[0].id);
 
       if(error) throw error;
 
-      setStatus("✅ Logged OUT", "green");
+      setStatus("Logged OUT","green");
     }
 
-    // ===== RESET =====
     document.getElementById("bid").value="";
     document.getElementById("vno").value="";
     document.getElementById("mil").value="";
-    document.getElementById("condition").value="";
-    rawBatteryData = null;
+    rawData=null;
 
   }catch(err){
-    setStatus("❌ " + err.message, "red");
-  }finally{
-    lockUI(false);
+    setStatus(err.message,"red");
   }
 }
-
-// ================= EVENTS =================
-document.getElementById("btnIn").onclick = () => process("IN");
-document.getElementById("btnOut").onclick = () => process("OUT");
-
 </script>
 
 </body>
