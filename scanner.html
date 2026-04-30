@@ -18,7 +18,7 @@ button{padding:12px;border:none;border-radius:8px;color:#fff;font-weight:700;cur
 .btn-in{background:#27ae60}
 .btn-out{background:#e67e22}
 .btn-container{display:flex;justify-content:space-between}
-#status{margin-top:15px;font-weight:700}
+#status{margin-top:15px;font-weight:700;min-height:20px}
 </style>
 </head>
 
@@ -43,19 +43,29 @@ button{padding:12px;border:none;border-radius:8px;color:#fff;font-weight:700;cur
 </div>
 
 <script>
+// ===== CONFIG =====
 const db = supabase.createClient(
   "https://bdcwfgutqnfhacanswlk.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A"
 );
 
-let scanner=null, scanning=false, rawData=null;
+// ===== STATE =====
+let scanner = null;
+let scanning = false;
+let rawData = null;
 
+// ===== UI =====
 function setStatus(msg,color="black"){
   const s=document.getElementById("status");
   s.innerText=msg;
   s.style.color=color;
 }
 
+function lockUI(lock=true){
+  document.querySelectorAll("button").forEach(b=>b.disabled=lock);
+}
+
+// ===== TIME =====
 function getNow(){
   const n=new Date();
   return {
@@ -64,81 +74,110 @@ function getNow(){
   };
 }
 
+// ===== SCANNER CLOSE =====
+async function closeScanner(){
+  const reader=document.getElementById("reader");
+
+  if(scanner){
+    try{
+      await scanner.stop();
+      await scanner.clear();
+    }catch(e){}
+    scanner=null;
+  }
+
+  scanning=false;
+  reader.style.display="none";
+  document.getElementById("scanBtn").innerText="📷 SCAN";
+}
+
 // ===== SCANNER =====
 document.getElementById("scanBtn").onclick=async()=>{
   const reader=document.getElementById("reader");
 
   if(scanning){
-    await scanner.stop(); await scanner.clear();
-    scanner=null; scanning=false;
-    reader.style.display="none";
+    await closeScanner();
     return;
   }
 
   reader.style.display="block";
+  document.getElementById("scanBtn").innerText="🛑 CLOSE";
+
   scanner=new Html5Qrcode("reader");
 
-  await scanner.start(
-    {facingMode:"environment"},
-    {fps:10,qrbox:{width:250,height:250}},
-    (decoded)=>{
-      rawData=decoded;
+  try{
+    await scanner.start(
+      {facingMode:"environment"},
+      {fps:10,qrbox:{width:250,height:250}},
+      (decoded)=>{
 
-      let code=decoded;
-      try{
-        const j=JSON.parse(decoded);
-        if(j.code) code=j.code;
-      }catch(e){}
+        rawData=decoded;
 
-      code=code.trim().toUpperCase();
+        let code=decoded;
 
-      document.getElementById("bid").value=code;
-      setStatus("Scanned: "+code,"green");
+        try{
+          const j=JSON.parse(decoded);
+          if(j.code) code=j.code;
+        }catch(e){}
 
-      scanner.stop(); scanner.clear();
-      scanning=false;
-      reader.style.display="none";
-    }
-  );
+        code=code.trim().toUpperCase();
 
-  scanning=true;
+        document.getElementById("bid").value=code;
+        setStatus("✅ Scanned: "+code,"green");
+
+        // auto close camera
+        setTimeout(()=>closeScanner(),200);
+      }
+    );
+
+    scanning=true;
+
+  }catch(err){
+    setStatus("Camera error: "+err,"red");
+  }
 };
 
-// ===== MAIN =====
+// ===== MAIN PROCESS =====
 async function process(type){
 
   const bid=document.getElementById("bid").value.trim().toUpperCase();
   const vno=document.getElementById("vno").value.trim();
   const mil=document.getElementById("mil").value.trim();
 
-  if(!bid) return setStatus("Enter Battery ID","red");
-  if(!vno) return setStatus("Enter Vehicle","red");
-  if(!mil) return setStatus("Enter Mileage","red");
+  if(!bid) return setStatus("❌ Enter Battery ID","red");
+  if(!vno) return setStatus("❌ Enter Vehicle","red");
+  if(!mil) return setStatus("❌ Enter Mileage","red");
 
   const raw = rawData || JSON.stringify({code:bid});
   const now=getNow();
 
+  lockUI(true);
+  setStatus("⏳ Processing...","orange");
+
   try{
 
-    // ==== CHECK MASTER ====
+    // ===== CHECK MASTER =====
     const {data:battery,error:e1}=await db
       .from("battery_master")
       .select("*")
-      .ilike("battery_id", `%"code":"${bid}"%`)
+      .ilike("battery_id", `%${bid}%`)
       .maybeSingle();
 
-    if(e1 || !battery) throw new Error("Battery not found");
+    if(e1 || !battery){
+      throw new Error("Battery not found");
+    }
 
     if(type==="IN"){
 
       const {data:exist}=await db
         .from("battery_swaps")
         .select("id")
-        .ilike("battery_id", `%"code":"${bid}"%`)
+        .ilike("battery_id", `%${bid}%`)
         .eq("status","IN");
 
-      if(exist && exist.length>0)
-        throw new Error("Already IN");
+      if(exist && exist.length>0){
+        throw new Error("Battery already IN");
+      }
 
       const {error}=await db.from("battery_swaps").insert([{
         battery_id:raw,
@@ -151,19 +190,20 @@ async function process(type){
 
       if(error) throw error;
 
-      setStatus("Logged IN","green");
+      setStatus("✅ Logged IN","green");
 
     }else{
 
       const {data:exist}=await db
         .from("battery_swaps")
         .select("*")
-        .ilike("battery_id", `%"code":"${bid}"%`)
+        .ilike("battery_id", `%${bid}%`)
         .eq("status","IN")
         .limit(1);
 
-      if(!exist || exist.length===0)
-        throw new Error("Not IN");
+      if(!exist || exist.length===0){
+        throw new Error("Battery not IN");
+      }
 
       const {error}=await db
         .from("battery_swaps")
@@ -178,16 +218,19 @@ async function process(type){
 
       if(error) throw error;
 
-      setStatus("Logged OUT","green");
+      setStatus("✅ Logged OUT","green");
     }
 
+    // reset
     document.getElementById("bid").value="";
     document.getElementById("vno").value="";
     document.getElementById("mil").value="";
     rawData=null;
 
   }catch(err){
-    setStatus(err.message,"red");
+    setStatus("❌ "+err.message,"red");
+  }finally{
+    lockUI(false);
   }
 }
 </script>
