@@ -9,46 +9,11 @@
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-body{
-  font-family:sans-serif;
-  background:#f0f2f5;
-  text-align:center;
-  padding:20px
-}
-.card{
-  background:#fff;
-  padding:20px;
-  border-radius:12px;
-  box-shadow:0 4px 10px rgba(0,0,0,.1);
-  max-width:420px;
-  margin:auto
-}
-#reader{
-  width:100%;
-  min-height:250px;
-  background:#000;
-  border-radius:8px;
-  margin-bottom:10px;
-  display:none
-}
-input, select{
-  width:100%;
-  padding:12px;
-  margin:8px 0;
-  border:1px solid #ccc;
-  border-radius:5px;
-  box-sizing:border-box
-}
-button{
-  padding:12px;
-  border:none;
-  border-radius:8px;
-  color:#fff;
-  font-weight:700;
-  cursor:pointer;
-  margin-top:10px;
-  width:48%
-}
+body{font-family:sans-serif;background:#f0f2f5;text-align:center;padding:20px}
+.card{background:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.1);max-width:420px;margin:auto}
+#reader{width:100%;min-height:250px;background:#000;border-radius:8px;margin-bottom:10px;display:none}
+input,select{width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:5px;box-sizing:border-box}
+button{padding:12px;border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer;margin-top:10px;width:48%}
 .btn-scan{background:#3498db;width:100%!important}
 .btn-in{background:#27ae60}
 .btn-out{background:#e67e22}
@@ -60,11 +25,9 @@ button{
 <body>
 
 <div class="card">
-
 <h2>🔋 LSM Battery Swap</h2>
 
 <div id="reader"></div>
-
 <button id="scanBtn" class="btn-scan">📷 OPEN SCANNER</button>
 
 <input type="text" id="operator" placeholder="Operator Name">
@@ -85,21 +48,20 @@ button{
 </div>
 
 <div id="status">Ready</div>
-
 </div>
 
 <script>
 // ================= CONFIG =================
 const SUPABASE_URL = "https://bdcwfgutqnfhacanswlk.supabase.co";
-const SUPABASE_KEY = "YOUR_PUBLIC_ANON_KEY"; // keep anon, secure via RLS
-
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A";
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ================= STATE =================
 let scanner = null;
 let scanning = false;
+let rawBatteryData = null;
 
-// ================= UI HELPERS =================
+// ================= UI =================
 const statusBox = document.getElementById("status");
 
 function setStatus(msg, color="black"){
@@ -108,7 +70,7 @@ function setStatus(msg, color="black"){
 }
 
 function lockUI(lock=true){
-  document.querySelectorAll("button").forEach(b=>b.disabled = lock);
+  document.querySelectorAll("button").forEach(b => b.disabled = lock);
 }
 
 // ================= TIME =================
@@ -122,10 +84,10 @@ function getNow(){
 
 // ================= VALIDATION =================
 function validateInputs(){
+  const operator = document.getElementById("operator").value.trim();
   const bid = document.getElementById("bid").value.trim();
   const vno = document.getElementById("vno").value.trim();
   const mil = document.getElementById("mil").value.trim();
-  const operator = document.getElementById("operator").value.trim();
 
   if(!operator) return "Enter Operator Name";
   if(!bid) return "Enter Battery ID";
@@ -154,8 +116,24 @@ document.getElementById("scanBtn").onclick = async () => {
       { facingMode: "environment" },
       { fps: 10, qrbox: { width: 250, height: 250 }},
       (decoded) => {
-        document.getElementById("bid").value = decoded;
-        setStatus("✅ Scanned: " + decoded, "green");
+
+        rawBatteryData = decoded;
+
+        let code = decoded;
+
+        try{
+          const parsed = JSON.parse(decoded);
+          if(parsed.code){
+            code = parsed.code;
+          }
+        }catch(e){}
+
+        code = code.toUpperCase().trim();
+
+        document.getElementById("bid").value = code;
+
+        setStatus("✅ Scanned: " + code, "green");
+
         stopScanner();
       }
     );
@@ -174,11 +152,12 @@ async function stopScanner(){
   scanning = false;
 }
 
-// ================= CORE LOGIC =================
+// ================= CORE =================
 async function process(type){
-  const error = validateInputs();
-  if(error){
-    setStatus("❌ " + error, "red");
+
+  const errorMsg = validateInputs();
+  if(errorMsg){
+    setStatus("❌ " + errorMsg, "red");
     return;
   }
 
@@ -186,7 +165,9 @@ async function process(type){
   setStatus("⏳ Processing...", "orange");
 
   try{
-    const bid = document.getElementById("bid").value.trim();
+    const bidDisplay = document.getElementById("bid").value.trim();
+    const bidRaw = rawBatteryData || JSON.stringify({code: bidDisplay});
+
     const vno = document.getElementById("vno").value.trim();
     const mil = document.getElementById("mil").value.trim();
     const operator = document.getElementById("operator").value.trim();
@@ -194,11 +175,11 @@ async function process(type){
 
     const now = getNow();
 
-    // ==== VALIDATE BATTERY ====
+    // ===== VALIDATE BATTERY =====
     const { data: battery, error: err1 } = await db
       .from("battery_master")
       .select("battery_id, model")
-      .eq("battery_id", bid)
+      .eq("battery_id->>code", bidDisplay)
       .single();
 
     if(err1 || !battery){
@@ -206,10 +187,11 @@ async function process(type){
     }
 
     if(type === "IN"){
+
       const { data: existing } = await db
         .from("battery_swaps")
         .select("id")
-        .eq("battery_id", bid)
+        .eq("battery_id->>code", bidDisplay)
         .eq("status", "IN");
 
       if(existing && existing.length > 0){
@@ -217,7 +199,7 @@ async function process(type){
       }
 
       const { error } = await db.from("battery_swaps").insert([{
-        battery_id: bid,
+        battery_id: bidRaw,
         model: battery.model,
         vehicle_in: vno,
         mileage_in: mil,
@@ -237,7 +219,7 @@ async function process(type){
       const { data: existing } = await db
         .from("battery_swaps")
         .select("*")
-        .eq("battery_id", bid)
+        .eq("battery_id->>code", bidDisplay)
         .eq("status", "IN")
         .order("id", { ascending:false })
         .limit(1);
@@ -265,11 +247,12 @@ async function process(type){
       setStatus("✅ Logged OUT", "green");
     }
 
-    // clear form
+    // ===== RESET =====
     document.getElementById("bid").value="";
     document.getElementById("vno").value="";
     document.getElementById("mil").value="";
     document.getElementById("condition").value="";
+    rawBatteryData = null;
 
   }catch(err){
     setStatus("❌ " + err.message, "red");
