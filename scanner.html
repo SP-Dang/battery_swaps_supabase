@@ -1,1 +1,288 @@
-<!DOCTYPE html><html><head><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><meta charset="UTF-8"><title>LSM Battery Station</title><meta name="viewport" content="width=device-width,initial-scale=1"><script src="https://unpkg.com/html5-qrcode"></script><style>body{font-family:sans-serif;background:#f0f2f5;text-align:center;padding:20px}.card{background:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.1);max-width:400px;margin:auto}#reader{width:100%;min-height:250px;background:#000;border-radius:8px;margin-bottom:10px;display:none}input{width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:5px;box-sizing:border-box}button{padding:12px;border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer;margin-top:10px;width:48%}.btn-scan{background:#3498db;width:100%!important}.btn-in{background:#27ae60}.btn-out{background:#e67e22}#status{margin-top:15px;font-weight:700;min-height:20px}.btn-container{display:flex;justify-content:space-between}</style></head><body><div class="card"><div style="margin-bottom:25px"><span style="font-size:38px;font-weight:900;color:#ff4500">L</span><span style="font-size:38px;font-weight:900;color:#ff4500;margin-left:-5px">S</span><span style="font-size:38px;font-weight:900;color:#ff4500;margin-left:-5px">M</span><div style="font-size:11px;color:#2c3e50;letter-spacing:2px;margin-top:-5px;font-weight:700">LAO SMART MOBILITY</div><div style="font-size:10px;color:#7f8c8d;font-style:italic;margin-top:4px">Powered by Somphone</div></div><div id="reader"></div><button id="scanBtn" class="btn-scan" onclick="toggleCamera()">📷 OPEN SCANNER</button><input type="text" id="bid" placeholder="Battery ID"><input type="text" id="vno" placeholder="Vehicle No"><input type="number" id="mil" placeholder="Mileage"><div class="btn-container"><button type="button" class="btn-in" onclick="process('IN')">LOG IN</button><button type="button" class="btn-out" onclick="process('OUT')">LOG OUT</button></div><div id="status">Ready</div></div><script>const u="https://bdcwfgutqnfhacanswlk.supabase.co",k="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A",_s=supabase.createClient(u,k);let sc,iS=!1;function toggleCamera(){const e=document.getElementById("reader"),t=document.getElementById("scanBtn");iS?(stopScanner(),e.style.display="none",t.innerText="📷 OPEN SCANNER"):(e.style.display="block",t.innerText="🛑 CLOSE SCANNER",startScanner()),iS=!iS}function startScanner(){sc=new Html5Qrcode("reader"),sc.start({facingMode:"environment"},{fps:10,qrbox:{width:250,height:250}},(e=>{document.getElementById("bid").value=e,document.getElementById("status").innerText="✅ Scanned: "+e,document.getElementById("status").style.color="green",toggleCamera()}),(e=>{})).catch((e=>{document.getElementById("status").innerText="Camera Error: "+e,document.getElementById("status").style.color="red"}))}function stopScanner(){sc&&sc.stop().catch((e=>console.log(e)))}async function process(e){const t=document.getElementById("status"),n=document.getElementById("bid").value.trim(),c=document.getElementById("vno").value.trim(),l=document.getElementById("mil").value.trim();if(!n)return void(t.innerText="❌ Enter Battery ID");t.innerText="⏳ Authenticating...",t.style.color="orange";const{data:r,error:a}=await _s.from("battery_master").select("battery_id, model").ilike("battery_id",n).maybeSingle();if(a||!r)return t.innerText="❌ REJECTED: Not in Master List!",void(t.style.color="red");const s=r.model,d=(new Date).toISOString().split("T")[0],i=(new Date).toLocaleTimeString("en-GB");if("IN"===e){const{data:e}=await _s.from("battery_swaps").select("id").eq("battery_id",n).is("time_out",null);if(e&&e.length>0)return t.innerText="⚠️ BLOCKED: Already IN!",void(t.style.color="red");const{error:r}=await _s.from("battery_swaps").insert([{battery_id:n,model:s,vehicle_in:c,mileage_in:l,date_in:d,time_in:i}]);hR(r,"Logged IN",t)}else{const{data:r,error:a}=await _s.from("battery_swaps").select("id").eq("battery_id",n).is("time_out",null).order("id",{ascending:!1}).limit(1);if(a||!r||0===r.length)return t.innerText="⚠️ BLOCKED: Not IN shop!",void(t.style.color="red");const{error:s}=await _s.from("battery_swaps").update({vehicle_out:c,mileage_out:l,date_out:d,time_out:i}).eq("id",r[0].id);hR(s,"Logged OUT",t)}}function hR(e,t,n){e?(n.innerText="❌ DB Error: "+e.message,n.style.color="red"):(n.innerText="✅ "+t+"!",n.style.color="green",document.getElementById("bid").value="",document.getElementById("vno").value="",document.getElementById("mil").value="")}</script></body></html>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>LSM Battery Station</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+body{
+  font-family:sans-serif;
+  background:#f0f2f5;
+  text-align:center;
+  padding:20px
+}
+.card{
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 4px 10px rgba(0,0,0,.1);
+  max-width:420px;
+  margin:auto
+}
+#reader{
+  width:100%;
+  min-height:250px;
+  background:#000;
+  border-radius:8px;
+  margin-bottom:10px;
+  display:none
+}
+input, select{
+  width:100%;
+  padding:12px;
+  margin:8px 0;
+  border:1px solid #ccc;
+  border-radius:5px;
+  box-sizing:border-box
+}
+button{
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  color:#fff;
+  font-weight:700;
+  cursor:pointer;
+  margin-top:10px;
+  width:48%
+}
+.btn-scan{background:#3498db;width:100%!important}
+.btn-in{background:#27ae60}
+.btn-out{background:#e67e22}
+#status{margin-top:15px;font-weight:700;min-height:20px}
+.btn-container{display:flex;justify-content:space-between}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>🔋 LSM Battery Swap</h2>
+
+<div id="reader"></div>
+
+<button id="scanBtn" class="btn-scan">📷 OPEN SCANNER</button>
+
+<input type="text" id="operator" placeholder="Operator Name">
+<input type="text" id="bid" placeholder="Battery ID">
+<input type="text" id="vno" placeholder="Vehicle No">
+<input type="number" id="mil" placeholder="Mileage">
+
+<select id="condition">
+  <option value="">Battery Condition</option>
+  <option value="GOOD">Good</option>
+  <option value="DAMAGED">Damaged</option>
+  <option value="CHARGING">Charging</option>
+</select>
+
+<div class="btn-container">
+  <button class="btn-in" id="btnIn">LOG IN</button>
+  <button class="btn-out" id="btnOut">LOG OUT</button>
+</div>
+
+<div id="status">Ready</div>
+
+</div>
+
+<script>
+// ================= CONFIG =================
+const SUPABASE_URL = "https://bdcwfgutqnfhacanswlk.supabase.co";
+const SUPABASE_KEY = "YOUR_PUBLIC_ANON_KEY"; // keep anon, secure via RLS
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ================= STATE =================
+let scanner = null;
+let scanning = false;
+
+// ================= UI HELPERS =================
+const statusBox = document.getElementById("status");
+
+function setStatus(msg, color="black"){
+  statusBox.innerText = msg;
+  statusBox.style.color = color;
+}
+
+function lockUI(lock=true){
+  document.querySelectorAll("button").forEach(b=>b.disabled = lock);
+}
+
+// ================= TIME =================
+function getNow(){
+  const now = new Date();
+  return {
+    date: now.toLocaleDateString("en-CA"),
+    time: now.toLocaleTimeString("en-GB")
+  };
+}
+
+// ================= VALIDATION =================
+function validateInputs(){
+  const bid = document.getElementById("bid").value.trim();
+  const vno = document.getElementById("vno").value.trim();
+  const mil = document.getElementById("mil").value.trim();
+  const operator = document.getElementById("operator").value.trim();
+
+  if(!operator) return "Enter Operator Name";
+  if(!bid) return "Enter Battery ID";
+  if(!vno) return "Enter Vehicle No";
+  if(!mil) return "Enter Mileage";
+
+  return null;
+}
+
+// ================= SCANNER =================
+document.getElementById("scanBtn").onclick = async () => {
+  const reader = document.getElementById("reader");
+
+  if(scanning){
+    await stopScanner();
+    reader.style.display = "none";
+    setStatus("Scanner closed");
+    return;
+  }
+
+  reader.style.display = "block";
+  scanner = new Html5Qrcode("reader");
+
+  try{
+    await scanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 }},
+      (decoded) => {
+        document.getElementById("bid").value = decoded;
+        setStatus("✅ Scanned: " + decoded, "green");
+        stopScanner();
+      }
+    );
+    scanning = true;
+  }catch(err){
+    setStatus("Camera error: " + err, "red");
+  }
+};
+
+async function stopScanner(){
+  if(scanner){
+    await scanner.stop();
+    await scanner.clear();
+    scanner = null;
+  }
+  scanning = false;
+}
+
+// ================= CORE LOGIC =================
+async function process(type){
+  const error = validateInputs();
+  if(error){
+    setStatus("❌ " + error, "red");
+    return;
+  }
+
+  lockUI(true);
+  setStatus("⏳ Processing...", "orange");
+
+  try{
+    const bid = document.getElementById("bid").value.trim();
+    const vno = document.getElementById("vno").value.trim();
+    const mil = document.getElementById("mil").value.trim();
+    const operator = document.getElementById("operator").value.trim();
+    const condition = document.getElementById("condition").value;
+
+    const now = getNow();
+
+    // ==== VALIDATE BATTERY ====
+    const { data: battery, error: err1 } = await db
+      .from("battery_master")
+      .select("battery_id, model")
+      .eq("battery_id", bid)
+      .single();
+
+    if(err1 || !battery){
+      throw new Error("Battery not found in master list");
+    }
+
+    if(type === "IN"){
+      const { data: existing } = await db
+        .from("battery_swaps")
+        .select("id")
+        .eq("battery_id", bid)
+        .eq("status", "IN");
+
+      if(existing && existing.length > 0){
+        throw new Error("Battery already IN");
+      }
+
+      const { error } = await db.from("battery_swaps").insert([{
+        battery_id: bid,
+        model: battery.model,
+        vehicle_in: vno,
+        mileage_in: mil,
+        operator,
+        condition_in: condition,
+        status: "IN",
+        date_in: now.date,
+        time_in: now.time
+      }]);
+
+      if(error) throw error;
+
+      setStatus("✅ Logged IN", "green");
+
+    } else {
+
+      const { data: existing } = await db
+        .from("battery_swaps")
+        .select("*")
+        .eq("battery_id", bid)
+        .eq("status", "IN")
+        .order("id", { ascending:false })
+        .limit(1);
+
+      if(!existing || existing.length === 0){
+        throw new Error("Battery not IN shop");
+      }
+
+      const record = existing[0];
+
+      const { error } = await db
+        .from("battery_swaps")
+        .update({
+          vehicle_out: vno,
+          mileage_out: mil,
+          condition_out: condition,
+          status: "OUT",
+          date_out: now.date,
+          time_out: now.time
+        })
+        .eq("id", record.id);
+
+      if(error) throw error;
+
+      setStatus("✅ Logged OUT", "green");
+    }
+
+    // clear form
+    document.getElementById("bid").value="";
+    document.getElementById("vno").value="";
+    document.getElementById("mil").value="";
+    document.getElementById("condition").value="";
+
+  }catch(err){
+    setStatus("❌ " + err.message, "red");
+  }finally{
+    lockUI(false);
+  }
+}
+
+// ================= EVENTS =================
+document.getElementById("btnIn").onclick = () => process("IN");
+document.getElementById("btnOut").onclick = () => process("OUT");
+
+</script>
+
+</body>
+</html>
