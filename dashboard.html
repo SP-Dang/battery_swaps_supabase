@@ -22,6 +22,7 @@ body{font-family:sans-serif;background:#f4f6f8;margin:0}
 
 .row{display:flex;gap:10px;flex-wrap:wrap}
 
+/* KPI */
 .stat{
   flex:1;
   padding:15px;
@@ -34,11 +35,45 @@ body{font-family:sans-serif;background:#f4f6f8;margin:0}
 .out{background:#e67e22}
 .stay{background:#8e44ad}
 .swap{background:#3498db}
+.rev{background:#2c3e50}
 
+/* Layout split */
+.split{
+  display:flex;
+  gap:10px;
+}
+.left{flex:2}
+.right{flex:1}
+
+/* Table */
 .table{width:100%;border-collapse:collapse}
-.table th,.table td{border-bottom:1px solid #ddd;padding:8px}
+.table th,.table td{
+  border-bottom:1px solid #ddd;
+  padding:8px;
+  text-align:center;
+}
 
-input{padding:10px;width:100%;margin:5px 0}
+/* Inputs */
+.filter-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+.left-inputs{
+  display:flex;
+  gap:5px;
+}
+.left-inputs input{
+  width:130px;
+  padding:8px;
+}
+.search{
+  width:200px;
+  padding:8px;
+}
+
+button{padding:8px 12px;margin-top:5px}
 
 </style>
 </head>
@@ -63,23 +98,32 @@ input{padding:10px;width:100%;margin:5px 0}
 <!-- OVERVIEW -->
 <div id="overview">
 
+<!-- KPI -->
 <div class="card">
 <div class="row">
 <div class="stat in" id="in"></div>
 <div class="stat out" id="out"></div>
 <div class="stat stay" id="stay"></div>
 <div class="stat swap" id="swap"></div>
+<div class="stat rev" id="revenue"></div>
 </div>
 </div>
 
-<div class="card">
+<!-- SPLIT -->
+<div class="split">
+
+<!-- LEFT -->
+<div class="card left">
 <h3>🚗 Vehicle Activity (Today)</h3>
 <div id="vehicleTable"></div>
 </div>
 
-<div class="card">
+<!-- RIGHT -->
+<div class="card right">
 <h3>⚠️ Battery Alerts (Low Mileage)</h3>
 <div id="alerts"></div>
+</div>
+
 </div>
 
 </div>
@@ -88,20 +132,27 @@ input{padding:10px;width:100%;margin:5px 0}
 <div id="transactions" style="display:none">
 
 <div class="card">
-<input type="date" id="from">
-<input type="date" id="to">
-<input id="search" placeholder="Search Battery">
+
+<div class="filter-row">
+  <div class="left-inputs">
+    <input type="date" id="from">
+    <input type="date" id="to">
+  </div>
+
+  <input id="search" class="search" placeholder="Search Battery">
+</div>
+
 <button onclick="loadTransactions()">Load</button>
-<button onclick="exportCSV()">Export Excel</button>
+<button onclick="exportCSV()">Export</button>
+
 </div>
 
 <div class="card" id="table"></div>
-
 <div class="card" id="modelSummary"></div>
 
 </div>
 
-<!-- ANALYTICS (Inventory) -->
+<!-- ANALYTICS -->
 <div id="analytics" style="display:none">
 
 <div class="card">
@@ -119,7 +170,9 @@ const db = supabase.createClient(
 "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A"
 );
 
-// ===== TAB =====
+const PRICE = 15000;
+
+// TAB
 function tab(t){
   ["overview","transactions","analytics"].forEach(x=>{
     document.getElementById(x).style.display="none";
@@ -132,12 +185,12 @@ function tab(t){
   event.target.classList.add("active");
 }
 
-// ===== UTIL =====
+// UTIL
 function code(x){
   try{return JSON.parse(x).code}catch{return x}
 }
 
-// ===== OVERVIEW =====
+// OVERVIEW
 async function loadOverview(){
 
   const today = new Date().toISOString().split("T")[0];
@@ -159,48 +212,33 @@ async function loadOverview(){
   document.getElementById("out").innerText="OUT: "+OUT;
   document.getElementById("stay").innerText="Stay: "+stay;
   document.getElementById("swap").innerText="Swaps: "+OUT;
+  document.getElementById("revenue").innerText="Revenue: "+(OUT*PRICE)+" LAK";
 
   renderVehicleTable(data);
-  checkMileageAlert(data);
+  checkAlert(data);
 }
 
-// ===== VEHICLE TABLE =====
+// VEHICLE TABLE (UPDATED)
 function renderVehicleTable(data){
 
-  let map = {};
-
-  data.forEach(r=>{
-    const v = r.vehicle_in || "Unknown";
-
-    if(!map[v]){
-      map[v] = {
-        count:0,
-        model:r.model,
-        battery:code(r.battery_id),
-        mileage:r.mileage_in
-      };
-    }
-    map[v].count++;
-  });
-
-  let html = `
+  let html=`
   <table class="table">
   <tr>
   <th>Vehicle</th>
   <th>Battery</th>
   <th>Model</th>
   <th>Mileage</th>
-  <th>Swaps</th>
+  <th>Status</th>
   </tr>`;
 
-  Object.entries(map).forEach(([v,o])=>{
+  data.forEach(r=>{
     html+=`
     <tr>
-    <td>${v}</td>
-    <td>${o.battery}</td>
-    <td>${o.model||"-"}</td>
-    <td>${o.mileage||"-"}</td>
-    <td>${o.count}</td>
+    <td>${r.vehicle_in||"-"}</td>
+    <td>${code(r.battery_id)}</td>
+    <td>${r.model||"-"}</td>
+    <td>${r.mileage_in||"-"}</td>
+    <td>${r.time_out?"OUT":"IN"}</td>
     </tr>`;
   });
 
@@ -208,16 +246,16 @@ function renderVehicleTable(data){
   document.getElementById("vehicleTable").innerHTML=html;
 }
 
-// ===== ALERT =====
-function checkMileageAlert(data){
+// ALERT
+function checkAlert(data){
 
   let alerts=[];
 
   data.forEach(r=>{
     if(r.mileage_in && r.mileage_out){
-      let diff = r.mileage_out - r.mileage_in;
-      if(diff < 50){
-        alerts.push(`${code(r.battery_id)} (${r.vehicle_in}) → ${diff} km`);
+      let diff=r.mileage_out-r.mileage_in;
+      if(diff<50){
+        alerts.push(`${code(r.battery_id)} → ${diff}km`);
       }
     }
   });
@@ -225,7 +263,7 @@ function checkMileageAlert(data){
   const el=document.getElementById("alerts");
 
   if(alerts.length===0){
-    el.innerHTML="✅ All normal";
+    el.innerHTML="✅ Normal";
     el.style.color="green";
   }else{
     el.innerHTML=alerts.join("<br>");
@@ -233,10 +271,10 @@ function checkMileageAlert(data){
   }
 }
 
-// ===== TRANSACTIONS =====
+// TRANSACTIONS
 async function loadTransactions(){
 
-  let q = db.from("battery_swaps").select("*");
+  let q=db.from("battery_swaps").select("*");
 
   const from=document.getElementById("from").value;
   const to=document.getElementById("to").value;
@@ -245,14 +283,16 @@ async function loadTransactions(){
   if(from) q=q.gte("date_in",from);
   if(to) q=q.lte("date_in",to);
 
-  const {data} = await q.order("id",{ascending:false}).limit(300);
+  const {data}=await q.order("id",{ascending:false}).limit(300);
 
-  let html=`<table class="table">
+  let html=`
+  <table class="table">
   <tr>
   <th>Battery</th>
   <th>Model</th>
   <th>Vehicle</th>
   <th>Mileage</th>
+  <th>Date</th>
   <th>Time</th>
   <th>Status</th>
   </tr>`;
@@ -267,6 +307,7 @@ async function loadTransactions(){
     <td>${r.model||"-"}</td>
     <td>${r.vehicle_in||"-"}</td>
     <td>${r.mileage_in||"-"}</td>
+    <td>${r.date_in||"-"}</td>
     <td>${r.time_in||"-"}</td>
     <td>${r.time_out?"OUT":"IN"}</td>
     </tr>`;
@@ -279,7 +320,7 @@ async function loadTransactions(){
   modelSummary(data);
 }
 
-// ===== MODEL SUMMARY =====
+// MODEL SUMMARY
 function modelSummary(data){
 
   let map={};
@@ -289,7 +330,7 @@ function modelSummary(data){
     map[m]=(map[m]||0)+1;
   });
 
-  let html="<h3>Battery Model Summary</h3>";
+  let html="<h3>Model Summary</h3>";
 
   Object.entries(map).forEach(([m,c])=>{
     html+=`<div>${m}: ${c}</div>`;
@@ -298,10 +339,9 @@ function modelSummary(data){
   document.getElementById("modelSummary").innerHTML=html;
 }
 
-// ===== EXPORT =====
+// EXPORT
 async function exportCSV(){
-
-  const {data} = await db.from("battery_swaps").select("*");
+  const {data}=await db.from("battery_swaps").select("*");
 
   let csv="Battery,Model,Vehicle,Status\n";
 
@@ -316,28 +356,22 @@ async function exportCSV(){
   a.click();
 }
 
-// ===== INVENTORY =====
+// INVENTORY
 async function loadInventory(){
+  const {data}=await db.from("battery_swaps").select("*");
 
-  const {data} = await db.from("battery_swaps").select("*");
-
-  let active = data.filter(r=>r.time_out===null);
+  let active=data.filter(r=>r.time_out===null);
 
   let html=`<table class="table">
-  <tr>
-  <th>Battery</th>
-  <th>Model</th>
-  <th>Vehicle</th>
-  <th>Time IN</th>
-  </tr>`;
+  <tr><th>Battery</th><th>Model</th><th>Vehicle</th><th>Time</th></tr>`;
 
   active.forEach(r=>{
     html+=`
     <tr>
     <td>${code(r.battery_id)}</td>
-    <td>${r.model||"-"}</td>
-    <td>${r.vehicle_in||"-"}</td>
-    <td>${r.time_in||"-"}</td>
+    <td>${r.model}</td>
+    <td>${r.vehicle_in}</td>
+    <td>${r.time_in}</td>
     </tr>`;
   });
 
@@ -346,7 +380,7 @@ async function loadInventory(){
   document.getElementById("inventory").innerHTML=html;
 }
 
-// ===== INIT =====
+// INIT
 loadOverview();
 loadTransactions();
 loadInventory();
