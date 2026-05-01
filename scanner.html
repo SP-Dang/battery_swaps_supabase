@@ -252,10 +252,10 @@ button:disabled{opacity:0.4;cursor:not-allowed}
 <!-- CONFIRM MODAL -->
 <div class="modal-bg" id="confirmModal">
   <div class="modal">
-    <h3 id="modalTitle">ຢຶນຢັນດຳເນິນການ</h3>
+    <h3 id="modalTitle">Confirm Action</h3>
     <div class="confirm-info" id="modalInfo"></div>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="pendingAction=null;closeModal()">ຍົກເລິກ</button>
+      <button class="btn-cancel" onclick="pendingAction=null;closeModal()">Cancel</button>
       <button id="modalConfirmBtn" onclick="confirmProcess()"></button>
     </div>
   </div>
@@ -274,21 +274,21 @@ button:disabled{opacity:0.4;cursor:not-allowed}
   <button id="scanBtn" class="btn-scan">📷 SCAN QR CODE</button>
 
   <div class="field">
-    <label>ລະຫັດແບັດເຕີຣີ</label>
-    <input id="bid" placeholder="e.g. C00001" autocomplete="off" maxlength="50">
+    <label>Battery ID</label>
+    <input id="bid" placeholder="e.g. BAT-001" autocomplete="off" maxlength="50">
   </div>
   <div class="field">
-    <label>ປ້າຍລົດ</label>
+    <label>Vehicle No</label>
     <input id="vno" placeholder="e.g. LA-1234" autocomplete="off" maxlength="20">
   </div>
   <div class="field">
-    <label>ເລກກົງເຕິ (km)</label>
+    <label>Mileage (km)</label>
     <input id="mil" type="number" placeholder="e.g. 1500" min="0" max="999999">
   </div>
 
   <div class="btn-container">
-    <button class="btn-action btn-in" onclick="requestProcess('ເຂົ້າ')">⬇ IN</button>
-    <button class="btn-action btn-out" onclick="requestProcess('ອອກ')">⬆ OUT</button>
+    <button class="btn-action btn-in" onclick="requestProcess('IN')">⬇ IN</button>
+    <button class="btn-action btn-out" onclick="requestProcess('OUT')">⬆ OUT</button>
   </div>
   <button onclick="logout()" class="btn-scan" style="margin-top:10px">
   🚪 LOGOUT
@@ -396,7 +396,7 @@ async function closeScanner(){
   scanning = false;
   document.getElementById("reader").style.display = "none";
   const btn = document.getElementById("scanBtn");
-  btn.innerText = "📷 ສະແກນ QR";
+  btn.innerText = "📷 SCAN QR CODE";
   btn.classList.remove("active");
 }
 
@@ -481,7 +481,7 @@ async function requestProcess(type){
     pendingAction = {type, bid, vno, mil: mil.toString(), battery};
 
     // Show modal
-    document.getElementById("modalTitle").innerText = type === "IN" ? "⬇ ຢືນຢັນເຂົ້າ" : "⬆ ຢືນຢັນອອກ";
+    document.getElementById("modalTitle").innerText = type === "IN" ? "⬇ Confirm Battery IN" : "⬆ Confirm Battery OUT";
     document.getElementById("modalInfo").innerHTML =
       `<span>Battery:</span>  ${bid}<br>` +
       `<span>Model:</span>    ${battery.model || "-"}<br>` +
@@ -505,7 +505,7 @@ async function requestProcess(type){
 function closeModal(){
   document.getElementById("confirmModal").classList.remove("show");
   // NOTE: do NOT clear pendingAction here — confirmProcess() needs it
-  setStatus("ພ້ອມໃຊ້ງານ");
+  setStatus("Ready");
 }
 
 // ===== CONFIRMED PROCESS =====
@@ -520,7 +520,7 @@ async function confirmProcess(){
 
   const now = getNow();
   lockUI(true);
-  setStatus("⏳ ກຳລັງດຳເນິນການ...", "loading");
+  setStatus("⏳ Processing...", "loading");
 
   try{
     if(type === "IN"){
@@ -545,7 +545,7 @@ async function confirmProcess(){
 }]);
 
       if(error) throw error;
-      setStatus("✅ ບັນທຶກເຂົ້າແລ້ວ", "ok");
+      setStatus("✅ Battery IN logged", "ok");
 
     }else{
 
@@ -577,7 +577,7 @@ async function confirmProcess(){
         .eq("id", exist[0].id);
 
       if(error) throw error;
-      setStatus("✅ ບັນທຶກອອກແລ້ວ", "ok");
+      setStatus("✅ Battery OUT logged", "ok");
     }
 
     // Reset form
