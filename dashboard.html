@@ -2,34 +2,44 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>LSM Dashboard</title>
+<title>LSM Battery Dashboard</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body{font-family:sans-serif;background:#f4f6f8;margin:0}
-.container{max-width:1100px;margin:auto;padding:20px}
+.container{max-width:1200px;margin:auto;padding:20px}
 
-.header{text-align:center;margin-bottom:10px}
-.header h1{margin:0}
+.header{text-align:center}
 .lsm{color:#ff4500;font-weight:bold}
-.sub{font-size:12px;color:#555}
 
-.nav{display:flex;gap:10px;margin:15px 0}
+.nav{display:flex;gap:10px;margin:20px 0}
 .nav button{flex:1;padding:12px;border:none;border-radius:8px;background:#ddd;font-weight:bold}
 .nav button.active{background:#3498db;color:#fff}
 
-.card{background:#fff;padding:15px;border-radius:10px;margin-bottom:10px}
+.card{background:#fff;padding:15px;border-radius:10px;margin-bottom:15px}
 
 .row{display:flex;gap:10px;flex-wrap:wrap}
-.stat{flex:1;background:#ecf0f1;padding:12px;border-radius:8px;text-align:center;font-weight:bold}
+
+.stat{
+  flex:1;
+  padding:15px;
+  border-radius:10px;
+  color:#fff;
+  text-align:center;
+  font-weight:bold
+}
+.in{background:#27ae60}
+.out{background:#e67e22}
+.stay{background:#8e44ad}
+.swap{background:#3498db}
 
 .table{width:100%;border-collapse:collapse}
 .table th,.table td{border-bottom:1px solid #ddd;padding:8px}
 
-button{cursor:pointer}
+input{padding:10px;width:100%;margin:5px 0}
+
 </style>
 </head>
 
@@ -40,12 +50,12 @@ button{cursor:pointer}
 <!-- HEADER -->
 <div class="header">
 <h1><span class="lsm">LSM</span> Battery Swaps Dashboard</h1>
-<div class="sub">Powered by somphone.dang@gmail.com</div>
+<div>Powered by somphone.dang@gmail.com</div>
 </div>
 
 <!-- NAV -->
 <div class="nav">
-<button onclick="tab('overview')" id="t1" class="active">Overview</button>
+<button onclick="tab('overview')" class="active" id="t1">Overview</button>
 <button onclick="tab('transactions')" id="t2">Transactions</button>
 <button onclick="tab('analytics')" id="t3">Analytics</button>
 </div>
@@ -55,22 +65,21 @@ button{cursor:pointer}
 
 <div class="card">
 <div class="row">
-<div class="stat" id="in">IN: 0</div>
-<div class="stat" id="out">OUT: 0</div>
-<div class="stat" id="stay">Stay: 0</div>
-<div class="stat" id="swap">Swaps: 0</div>
+<div class="stat in" id="in"></div>
+<div class="stat out" id="out"></div>
+<div class="stat stay" id="stay"></div>
+<div class="stat swap" id="swap"></div>
 </div>
 </div>
 
 <div class="card">
-<div class="row">
-<div class="stat" id="revenue">Revenue: 0</div>
-</div>
+<h3>🚗 Vehicle Activity (Today)</h3>
+<div id="vehicleTable"></div>
 </div>
 
 <div class="card">
-<h3>Vehicle Frequency (Today)</h3>
-<div id="vehicleStats"></div>
+<h3>⚠️ Battery Alerts (Low Mileage)</h3>
+<div id="alerts"></div>
 </div>
 
 </div>
@@ -79,34 +88,26 @@ button{cursor:pointer}
 <div id="transactions" style="display:none">
 
 <div class="card">
-<div class="row">
 <input type="date" id="from">
 <input type="date" id="to">
 <input id="search" placeholder="Search Battery">
-</div>
-
-<div class="row">
 <button onclick="loadTransactions()">Load</button>
 <button onclick="exportCSV()">Export Excel</button>
-</div>
 </div>
 
 <div class="card" id="table"></div>
 
+<div class="card" id="modelSummary"></div>
+
 </div>
 
-<!-- ANALYTICS -->
+<!-- ANALYTICS (Inventory) -->
 <div id="analytics" style="display:none">
 
 <div class="card">
-<canvas id="chart1"></canvas>
+<h3>🔋 Current Inventory (IN Shop)</h3>
+<div id="inventory"></div>
 </div>
-
-<div class="card">
-<canvas id="chart2"></canvas>
-</div>
-
-<div class="card" id="topVehicles"></div>
 
 </div>
 
@@ -118,18 +119,16 @@ const db = supabase.createClient(
 "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A"
 );
 
-const PRICE = 15000; // adjust per swap
-
-let chart1, chart2;
-
 // ===== TAB =====
 function tab(t){
-  ["overview","transactions","analytics"].forEach(id=>{
-    document.getElementById(id).style.display="none";
+  ["overview","transactions","analytics"].forEach(x=>{
+    document.getElementById(x).style.display="none";
   });
   document.getElementById(t).style.display="block";
 
-  ["t1","t2","t3"].forEach(id=>document.getElementById(id).classList.remove("active"));
+  ["t1","t2","t3"].forEach(x=>{
+    document.getElementById(x).classList.remove("active");
+  });
   event.target.classList.add("active");
 }
 
@@ -150,36 +149,88 @@ async function loadOverview(){
 
   let IN=0, OUT=0, stay=0;
 
-  const vehicleMap={};
-
   data.forEach(r=>{
     IN++;
     if(r.time_out) OUT++;
     else stay++;
-
-    const v=r.vehicle_in;
-    vehicleMap[v]=(vehicleMap[v]||0)+1;
   });
-
-  const swaps = OUT;
-  const revenue = swaps * PRICE;
 
   document.getElementById("in").innerText="IN: "+IN;
   document.getElementById("out").innerText="OUT: "+OUT;
   document.getElementById("stay").innerText="Stay: "+stay;
-  document.getElementById("swap").innerText="Swaps: "+swaps;
-  document.getElementById("revenue").innerText="Revenue: "+revenue;
+  document.getElementById("swap").innerText="Swaps: "+OUT;
 
-  let v1=0,v2=0,v3=0;
+  renderVehicleTable(data);
+  checkMileageAlert(data);
+}
 
-  Object.values(vehicleMap).forEach(c=>{
-    if(c==1) v1++;
-    if(c==2) v2++;
-    if(c>=3) v3++;
+// ===== VEHICLE TABLE =====
+function renderVehicleTable(data){
+
+  let map = {};
+
+  data.forEach(r=>{
+    const v = r.vehicle_in || "Unknown";
+
+    if(!map[v]){
+      map[v] = {
+        count:0,
+        model:r.model,
+        battery:code(r.battery_id),
+        mileage:r.mileage_in
+      };
+    }
+    map[v].count++;
   });
 
-  document.getElementById("vehicleStats").innerHTML =
-    `1x: ${v1} | 2x: ${v2} | 3x+: ${v3}`;
+  let html = `
+  <table class="table">
+  <tr>
+  <th>Vehicle</th>
+  <th>Battery</th>
+  <th>Model</th>
+  <th>Mileage</th>
+  <th>Swaps</th>
+  </tr>`;
+
+  Object.entries(map).forEach(([v,o])=>{
+    html+=`
+    <tr>
+    <td>${v}</td>
+    <td>${o.battery}</td>
+    <td>${o.model||"-"}</td>
+    <td>${o.mileage||"-"}</td>
+    <td>${o.count}</td>
+    </tr>`;
+  });
+
+  html+="</table>";
+  document.getElementById("vehicleTable").innerHTML=html;
+}
+
+// ===== ALERT =====
+function checkMileageAlert(data){
+
+  let alerts=[];
+
+  data.forEach(r=>{
+    if(r.mileage_in && r.mileage_out){
+      let diff = r.mileage_out - r.mileage_in;
+      if(diff < 50){
+        alerts.push(`${code(r.battery_id)} (${r.vehicle_in}) → ${diff} km`);
+      }
+    }
+  });
+
+  const el=document.getElementById("alerts");
+
+  if(alerts.length===0){
+    el.innerHTML="✅ All normal";
+    el.style.color="green";
+  }else{
+    el.innerHTML=alerts.join("<br>");
+    el.style.color="red";
+  }
 }
 
 // ===== TRANSACTIONS =====
@@ -194,17 +245,29 @@ async function loadTransactions(){
   if(from) q=q.gte("date_in",from);
   if(to) q=q.lte("date_in",to);
 
-  const {data} = await q.order("id",{ascending:false}).limit(200);
+  const {data} = await q.order("id",{ascending:false}).limit(300);
 
-  let html="<table class='table'><tr><th>Battery</th><th>Vehicle</th><th>Status</th></tr>";
+  let html=`<table class="table">
+  <tr>
+  <th>Battery</th>
+  <th>Model</th>
+  <th>Vehicle</th>
+  <th>Mileage</th>
+  <th>Time</th>
+  <th>Status</th>
+  </tr>`;
 
   data.forEach(r=>{
     const c=code(r.battery_id);
     if(s && !c.includes(s)) return;
 
-    html+=`<tr>
+    html+=`
+    <tr>
     <td>${c}</td>
-    <td>${r.vehicle_in}</td>
+    <td>${r.model||"-"}</td>
+    <td>${r.vehicle_in||"-"}</td>
+    <td>${r.mileage_in||"-"}</td>
+    <td>${r.time_in||"-"}</td>
     <td>${r.time_out?"OUT":"IN"}</td>
     </tr>`;
   });
@@ -212,6 +275,27 @@ async function loadTransactions(){
   html+="</table>";
 
   document.getElementById("table").innerHTML=html;
+
+  modelSummary(data);
+}
+
+// ===== MODEL SUMMARY =====
+function modelSummary(data){
+
+  let map={};
+
+  data.forEach(r=>{
+    const m=r.model||"Unknown";
+    map[m]=(map[m]||0)+1;
+  });
+
+  let html="<h3>Battery Model Summary</h3>";
+
+  Object.entries(map).forEach(([m,c])=>{
+    html+=`<div>${m}: ${c}</div>`;
+  });
+
+  document.getElementById("modelSummary").innerHTML=html;
 }
 
 // ===== EXPORT =====
@@ -219,10 +303,10 @@ async function exportCSV(){
 
   const {data} = await db.from("battery_swaps").select("*");
 
-  let csv="Battery,Vehicle,Status\n";
+  let csv="Battery,Model,Vehicle,Status\n";
 
   data.forEach(r=>{
-    csv+=`${code(r.battery_id)},${r.vehicle_in},${r.time_out?"OUT":"IN"}\n`;
+    csv+=`${code(r.battery_id)},${r.model},${r.vehicle_in},${r.time_out?"OUT":"IN"}\n`;
   });
 
   const blob=new Blob([csv]);
@@ -232,50 +316,43 @@ async function exportCSV(){
   a.click();
 }
 
-// ===== ANALYTICS =====
-async function loadAnalytics(){
+// ===== INVENTORY =====
+async function loadInventory(){
 
   const {data} = await db.from("battery_swaps").select("*");
 
-  const map={}, revMap={}, vehicleMap={};
+  let active = data.filter(r=>r.time_out===null);
 
-  data.forEach(r=>{
-    if(r.date_in){
-      map[r.date_in]=(map[r.date_in]||0)+1;
-      revMap[r.date_in]=(revMap[r.date_in]||0)+(r.time_out?PRICE:0);
-    }
+  let html=`<table class="table">
+  <tr>
+  <th>Battery</th>
+  <th>Model</th>
+  <th>Vehicle</th>
+  <th>Time IN</th>
+  </tr>`;
 
-    vehicleMap[r.vehicle_in]=(vehicleMap[r.vehicle_in]||0)+1;
+  active.forEach(r=>{
+    html+=`
+    <tr>
+    <td>${code(r.battery_id)}</td>
+    <td>${r.model||"-"}</td>
+    <td>${r.vehicle_in||"-"}</td>
+    <td>${r.time_in||"-"}</td>
+    </tr>`;
   });
 
-  const labels=Object.keys(map);
+  html+="</table>";
 
-  if(chart1) chart1.destroy();
-  chart1=new Chart(chart1=document.getElementById("chart1"),{
-    type:"line",
-    data:{labels,datasets:[{label:"Swaps",data:labels.map(d=>map[d])}]}
-  });
-
-  if(chart2) chart2.destroy();
-  chart2=new Chart(chart2=document.getElementById("chart2"),{
-    type:"bar",
-    data:{labels,datasets:[{label:"Revenue",data:labels.map(d=>revMap[d])}]}
-  });
-
-  let top=Object.entries(vehicleMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
-
-  let html="<h3>Top Vehicles</h3>";
-  top.forEach(([v,c])=>html+=`<div>${v} (${c})</div>`);
-
-  document.getElementById("topVehicles").innerHTML=html;
+  document.getElementById("inventory").innerHTML=html;
 }
 
 // ===== INIT =====
 loadOverview();
 loadTransactions();
-loadAnalytics();
+loadInventory();
 
 setInterval(loadOverview,5000);
+
 </script>
 
 </body>
