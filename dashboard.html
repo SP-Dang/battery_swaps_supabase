@@ -176,11 +176,35 @@ function code(x){try{return JSON.parse(x).code}catch{return x}}
 
 // OVERVIEW
 async function loadOverview(){
-const today=new Date().toISOString().split("T")[0];
-const {data}=await db.from("battery_swaps").select("*").eq("date_in",today);
+
+const now = new Date();
+const today = now.getFullYear() + "-" +
+  String(now.getMonth()+1).padStart(2,"0") + "-" +
+  String(now.getDate()).padStart(2,"0");
+
+const {data, error} = await db
+  .from("battery_swaps")
+  .select("*")
+  .eq("date_in", today);
+
+if(error){
+  console.error(error);
+  alert("DB Error: " + error.message);
+  return;
+}
+
+if(!data || data.length === 0){
+  vehicleTable.innerHTML = "No data today";
+  return;
+}
 
 let IN=0,OUT=0,stay=0;
-data.forEach(r=>{IN++;if(r.time_out)OUT++;else stay++;});
+
+data.forEach(r=>{
+IN++;
+if(r.time_out) OUT++;
+else stay++;
+});
 
 in.innerText="IN: "+IN;
 out.innerText="OUT: "+OUT;
