@@ -835,6 +835,31 @@ function exportCSV(){
     }
   });
 
+csv += "\n=== BATTERY MODEL SUMMARY ===\nModel,Count\n";
+let modelMap = {};
+source.forEach(r => {
+  const m = r.model || "Unknown";
+  modelMap[m] = (modelMap[m] || 0) + 1;
+});
+Object.entries(modelMap).forEach(([model, count]) => {
+  csv += `${model},${count}\n`;
+});
+
+csv += "\n=== FREQUENT VEHICLES (2+ swaps) ===\nVehicle,Times\n";
+
+let vehicleMap = {};
+source.forEach(r => {
+  if(!r.vehicle_in) return;
+  const v = r.vehicle_in;
+  vehicleMap[v] = (vehicleMap[v] || 0) + 1;
+});
+Object.entries(vehicleMap).forEach(([vehicle, count]) => {
+  if(count >= 2){
+    csv += `${vehicle},${count}\n`;
+  }
+});
+
+  
   const blob = new Blob([csv], {type:"text/csv"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
