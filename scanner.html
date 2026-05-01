@@ -414,7 +414,7 @@ async function requestProcess(type){
     const {data:battery, error:e1} = await db
       .from("battery_master")
       .select("*")
-      .eq("battery_id", bid)
+      .ilike("battery_id", `%${bid}%`)
       .maybeSingle();
 
     if(e1 || !battery) throw new Error("Battery not found in master list");
