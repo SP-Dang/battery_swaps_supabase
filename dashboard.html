@@ -206,11 +206,12 @@ if(r.time_out) OUT++;
 else stay++;
 });
 
-in.innerText="IN: "+IN;
-out.innerText="OUT: "+OUT;
-stay.innerText="Stay: "+stay;
-swap.innerText="Swaps: "+OUT;
-revenue.innerText="Revenue: "+(OUT*PRICE)+" LAK";
+document.getElementById("in").innerText = "IN: " + IN;
+document.getElementById("out").innerText = "OUT: " + OUT;
+document.getElementById("stay").innerText = "Stay: " + stay;
+document.getElementById("swap").innerText = "Swaps: " + OUT;
+document.getElementById("revenue").innerText = "Revenue: " + (OUT*PRICE) + " LAK";
+
 
 renderVehicle(data);
 renderAlerts(data);
