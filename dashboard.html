@@ -210,7 +210,9 @@ document.getElementById("in").innerText = "IN: " + IN;
 document.getElementById("out").innerText = "OUT: " + OUT;
 document.getElementById("stay").innerText = "Stay: " + stay;
 document.getElementById("swap").innerText = "Swaps: " + OUT;
-document.getElementById("revenue").innerText = "Revenue: " + (OUT*PRICE) + " LAK";
+const revenueValue = OUT * PRICE;
+document.getElementById("revenue").innerText =
+  "Revenue: ₭" + revenueValue.toLocaleString();
 
 
 renderVehicle(data);
@@ -320,16 +322,54 @@ e.addEventListener("input",loadTransactions);
 
 // EXPORT
 function exportCSV(){
-let csv="Battery,Vehicle,Model,Date,Status\n";
+
+let csv = "=== TRANSACTIONS ===\n";
+csv += "Battery,Vehicle,Model,Date,Status\n";
+
 cachedData.forEach(r=>{
-csv+=`${code(r.battery_id)},${r.vehicle_in},${r.model},${r.date_in},${r.time_out?"OUT":"IN"}\n`;
+  csv += `${code(r.battery_id)},${r.vehicle_in},${r.model},${r.date_in},${r.time_out?"OUT":"IN"}\n`;
 });
-const blob=new Blob([csv]);
-const a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="data.csv";
+
+// ===== ALERTS
+csv += "\n=== BATTERY ALERTS (<50km) ===\n";
+
+cachedData.forEach(r=>{
+  if(r.mileage_in && r.mileage_out){
+    let diff = r.mileage_out - r.mileage_in;
+    if(diff < 50){
+      csv += `${code(r.battery_id)},${r.vehicle_in},${diff}km\n`;
+    }
+  }
+});
+
+// ===== FREQUENT VEHICLES
+csv += "\n=== FREQUENT VEHICLES (2+ swaps) ===\n";
+
+let map = {};
+
+cachedData.forEach(r=>{
+  if(!r.vehicle_in) return;
+  if(!map[r.vehicle_in]) map[r.vehicle_in] = [];
+  map[r.vehicle_in].push(r);
+});
+
+Object.entries(map).forEach(([v, arr])=>{
+  if(arr.length >= 2){
+    csv += `${v} (${arr.length} times)\n`;
+    arr.forEach(x=>{
+      csv += `  - ${code(x.battery_id)} @ ${x.time_in}\n`;
+    });
+  }
+});
+
+// DOWNLOAD
+const blob = new Blob([csv]);
+const a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = "LSM_Report.csv";
 a.click();
 }
+
 
 // FINANCIAL
 async function loadAnalytics(){
