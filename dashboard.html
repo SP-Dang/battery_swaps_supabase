@@ -222,11 +222,21 @@ renderFreq(data);
 
 // VEHICLE
 function renderVehicle(data){
+
 let html=`<table class="table"><tr>
 <th>Vehicle</th><th>Battery</th><th>Model</th><th>Mileage</th><th>Status</th>
 </tr>`;
+
 data.forEach(r=>{
-html+=`<tr>
+
+let isAlert = false;
+
+if(r.mileage_in && r.mileage_out){
+  let diff = r.mileage_out - r.mileage_in;
+  if(diff < 50) isAlert = true;
+}
+
+html+=`<tr style="${isAlert ? 'background:#ffe6e6;font-weight:bold;' : ''}">
 <td>${r.vehicle_in||"-"}</td>
 <td>${code(r.battery_id)}</td>
 <td>${r.model||"-"}</td>
@@ -234,7 +244,9 @@ html+=`<tr>
 <td>${r.time_out?"OUT":"IN"}</td>
 </tr>`;
 });
+
 html+="</table>";
+
 vehicleTable.innerHTML=html;
 }
 
