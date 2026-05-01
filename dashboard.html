@@ -5,7 +5,7 @@
 <title>LSM Battery Dashboard</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@600;700;800&display=swap" rel="stylesheet">
 
 <style>
 :root{
@@ -30,7 +30,7 @@
   --text-mid:#8a98b0;
   --radius:12px;
   --font-mono:'JetBrains Mono',monospace;
-  --font-head:'Syne',sans-serif;
+  --font-head:'Orbitron',sans-serif;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -71,9 +71,9 @@ body{
 }
 .brand-text h1{
   font-family:var(--font-head);
-  font-size:1.3rem;
+  font-size:1.05rem;
   font-weight:800;
-  letter-spacing:-0.03em;
+  letter-spacing:0.04em;
 }
 .brand-text h1 .lsm{color:var(--accent)}
 .brand-text small{
@@ -194,14 +194,14 @@ body{
   text-align:center;
 }
 .kpi-label{font-size:0.6rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px}
-.kpi-value{font-family:var(--font-head);font-size:1.8rem;font-weight:800;line-height:1}
+.kpi-value{font-family:var(--font-head);font-size:1.5rem;font-weight:800;line-height:1;letter-spacing:0.04em}
 .kpi-sub{font-size:0.6rem;color:var(--text-dim);margin-top:4px}
 
 .kpi.kpi-in .kpi-value{color:var(--accent)}
 .kpi.kpi-out .kpi-value{color:var(--orange)}
 .kpi.kpi-stay .kpi-value{color:var(--purple)}
 .kpi.kpi-swap .kpi-value{color:var(--blue)}
-.kpi.kpi-rev .kpi-value{color:var(--text);font-size:1.2rem}
+.kpi.kpi-rev .kpi-value{color:var(--text);font-size:0.95rem}
 
 /* SPLIT */
 .split{
@@ -360,7 +360,7 @@ tr:hover td{background:var(--surface2)}
 .finance-row .f-label{color:var(--text-dim)}
 .finance-row .f-value{font-weight:700;font-family:var(--font-head)}
 .finance-row.total .f-label{color:var(--text);font-weight:700}
-.finance-row.total .f-value{color:var(--accent);font-size:1.1rem}
+.finance-row.total .f-value{color:var(--accent);font-size:0.95rem}
 
 /* LOADING */
 .skeleton{
