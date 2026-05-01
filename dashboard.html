@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>LSM Battery Dashboard V2</title>
+<title>LSM Dashboard</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -12,34 +12,24 @@
 body{font-family:sans-serif;background:#f4f6f8;margin:0}
 .container{max-width:1100px;margin:auto;padding:20px}
 
-.nav{
-  display:flex;
-  gap:10px;
-  margin-bottom:15px;
-}
-.nav button{
-  flex:1;
-  padding:12px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  font-weight:bold;
-  background:#ddd;
-}
+.header{text-align:center;margin-bottom:10px}
+.header h1{margin:0}
+.lsm{color:#ff4500;font-weight:bold}
+.sub{font-size:12px;color:#555}
+
+.nav{display:flex;gap:10px;margin:15px 0}
+.nav button{flex:1;padding:12px;border:none;border-radius:8px;background:#ddd;font-weight:bold}
 .nav button.active{background:#3498db;color:#fff}
 
-.card{background:#fff;padding:20px;border-radius:12px;margin-bottom:15px}
+.card{background:#fff;padding:15px;border-radius:10px;margin-bottom:10px}
 
 .row{display:flex;gap:10px;flex-wrap:wrap}
-.row > *{flex:1}
-
-.stat{text-align:center;padding:15px;border-radius:10px;background:#ecf0f1;font-weight:bold}
+.stat{flex:1;background:#ecf0f1;padding:12px;border-radius:8px;text-align:center;font-weight:bold}
 
 .table{width:100%;border-collapse:collapse}
 .table th,.table td{border-bottom:1px solid #ddd;padding:8px}
 
 button{cursor:pointer}
-
 </style>
 </head>
 
@@ -47,73 +37,76 @@ button{cursor:pointer}
 
 <div class="container">
 
+<!-- HEADER -->
+<div class="header">
+<h1><span class="lsm">LSM</span> Battery Swaps Dashboard</h1>
+<div class="sub">Powered by somphone.dang@gmail.com</div>
+</div>
+
 <!-- NAV -->
 <div class="nav">
-<button onclick="showTab('overview')" id="tab-overview" class="active">Overview</button>
-<button onclick="showTab('transactions')" id="tab-transactions">Transactions</button>
-<button onclick="showTab('analytics')" id="tab-analytics">Analytics</button>
+<button onclick="tab('overview')" id="t1" class="active">Overview</button>
+<button onclick="tab('transactions')" id="t2">Transactions</button>
+<button onclick="tab('analytics')" id="t3">Analytics</button>
 </div>
 
 <!-- OVERVIEW -->
-<div id="overview" class="tab">
+<div id="overview">
 
 <div class="card">
 <div class="row">
-<div class="stat" id="inCount">IN: 0</div>
-<div class="stat" id="outCount">OUT: 0</div>
-<div class="stat" id="todayCount">Today: 0</div>
+<div class="stat" id="in">IN: 0</div>
+<div class="stat" id="out">OUT: 0</div>
+<div class="stat" id="stay">Stay: 0</div>
+<div class="stat" id="swap">Swaps: 0</div>
 </div>
 </div>
 
 <div class="card">
-<h3>🚨 Alerts</h3>
-<div id="alerts">Checking...</div>
+<div class="row">
+<div class="stat" id="revenue">Revenue: 0</div>
+</div>
 </div>
 
 <div class="card">
-<canvas id="smallChart"></canvas>
+<h3>Vehicle Frequency (Today)</h3>
+<div id="vehicleStats"></div>
 </div>
 
 </div>
 
 <!-- TRANSACTIONS -->
-<div id="transactions" class="tab" style="display:none">
+<div id="transactions" style="display:none">
 
 <div class="card">
 <div class="row">
-<input type="date" id="fromDate">
-<input type="date" id="toDate">
-</div>
-
-<div class="row">
+<input type="date" id="from">
+<input type="date" id="to">
 <input id="search" placeholder="Search Battery">
-<select id="filter">
-<option value="">All</option>
-<option value="IN">IN</option>
-<option value="OUT">OUT</option>
-</select>
 </div>
 
 <div class="row">
 <button onclick="loadTransactions()">Load</button>
-<button onclick="nextPage()">Next</button>
-<button onclick="prevPage()">Prev</button>
+<button onclick="exportCSV()">Export Excel</button>
+</div>
 </div>
 
-</div>
-
-<div class="card" id="tableContainer"></div>
+<div class="card" id="table"></div>
 
 </div>
 
 <!-- ANALYTICS -->
-<div id="analytics" class="tab" style="display:none">
+<div id="analytics" style="display:none">
 
 <div class="card">
-<canvas id="mainChart"></canvas>
+<canvas id="chart1"></canvas>
 </div>
 
-<div class="card" id="topBatteries"></div>
+<div class="card">
+<canvas id="chart2"></canvas>
+</div>
+
+<div class="card" id="topVehicles"></div>
 
 </div>
 
@@ -121,169 +114,160 @@ button{cursor:pointer}
 
 <script>
 const db = supabase.createClient(
-  "https://bdcwfgutqnfhacanswlk.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A"
+"https://bdcwfgutqnfhacanswlk.supabase.co",
+"YOUR_PUBLIC_ANON_KEY"
 );
 
-let page = 0;
-let pageSize = 50;
-let dataStore = [];
-let smallChart, mainChart;
+const PRICE = 15000; // adjust per swap
+
+let chart1, chart2;
 
 // ===== TAB =====
-function showTab(tab){
-  document.querySelectorAll(".tab").forEach(t=>t.style.display="none");
-  document.getElementById(tab).style.display="block";
+function tab(t){
+  ["overview","transactions","analytics"].forEach(id=>{
+    document.getElementById(id).style.display="none";
+  });
+  document.getElementById(t).style.display="block";
 
-  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
-  document.getElementById("tab-"+tab).classList.add("active");
+  ["t1","t2","t3"].forEach(id=>document.getElementById(id).classList.remove("active"));
+  event.target.classList.add("active");
 }
 
 // ===== UTIL =====
-function extractCode(text){
-  try{
-    return JSON.parse(text).code || text;
-  }catch{return text}
+function code(x){
+  try{return JSON.parse(x).code}catch{return x}
 }
 
 // ===== OVERVIEW =====
 async function loadOverview(){
-  const {data} = await db.from("battery_swaps").select("*").limit(200);
 
-  let inCount=0,outCount=0,todayCount=0;
-  const today=new Date().toISOString().split("T")[0];
-  const map={};
+  const today = new Date().toISOString().split("T")[0];
 
-  data.forEach(r=>{
-    if(r.time_out===null) inCount++; else outCount++;
-    if(r.date_in===today) todayCount++;
+  const {data} = await db
+    .from("battery_swaps")
+    .select("*")
+    .eq("date_in", today);
 
-    if(r.date_in){
-      map[r.date_in]=(map[r.date_in]||0)+1;
-    }
-  });
+  let IN=0, OUT=0, stay=0;
 
-  document.getElementById("inCount").innerText="IN: "+inCount;
-  document.getElementById("outCount").innerText="OUT: "+outCount;
-  document.getElementById("todayCount").innerText="Today: "+todayCount;
-
-  // chart
-  const labels=Object.keys(map);
-  const values=labels.map(k=>map[k]);
-
-  if(smallChart) smallChart.destroy();
-  smallChart=new Chart(document.getElementById("smallChart"),{
-    type:"line",
-    data:{labels,datasets:[{data:values,label:"Daily"}]}
-  });
-
-  // alerts
-  let alerts=[];
-  const now=new Date();
+  const vehicleMap={};
 
   data.forEach(r=>{
-    if(r.time_out===null && r.date_in && r.time_in){
-      const dt=new Date(r.date_in+"T"+r.time_in);
-      const h=(now-dt)/3600000;
-      if(h>24) alerts.push(extractCode(r.battery_id));
-    }
+    IN++;
+    if(r.time_out) OUT++;
+    else stay++;
+
+    const v=r.vehicle_in;
+    vehicleMap[v]=(vehicleMap[v]||0)+1;
   });
 
-  document.getElementById("alerts").innerHTML =
-    alerts.length ? "⚠️ "+alerts.join(", ") : "✅ OK";
+  const swaps = OUT;
+  const revenue = swaps * PRICE;
+
+  document.getElementById("in").innerText="IN: "+IN;
+  document.getElementById("out").innerText="OUT: "+OUT;
+  document.getElementById("stay").innerText="Stay: "+stay;
+  document.getElementById("swap").innerText="Swaps: "+swaps;
+  document.getElementById("revenue").innerText="Revenue: "+revenue;
+
+  let v1=0,v2=0,v3=0;
+
+  Object.values(vehicleMap).forEach(c=>{
+    if(c==1) v1++;
+    if(c==2) v2++;
+    if(c>=3) v3++;
+  });
+
+  document.getElementById("vehicleStats").innerHTML =
+    `1x: ${v1} | 2x: ${v2} | 3x+: ${v3}`;
 }
 
 // ===== TRANSACTIONS =====
 async function loadTransactions(){
 
-  let query = db.from("battery_swaps").select("*");
+  let q = db.from("battery_swaps").select("*");
 
-  const from=document.getElementById("fromDate").value;
-  const to=document.getElementById("toDate").value;
+  const from=document.getElementById("from").value;
+  const to=document.getElementById("to").value;
+  const s=document.getElementById("search").value.toUpperCase();
 
-  if(from) query=query.gte("date_in",from);
-  if(to) query=query.lte("date_in",to);
+  if(from) q=q.gte("date_in",from);
+  if(to) q=q.lte("date_in",to);
 
-  query=query.order("id",{ascending:false})
-             .range(page*pageSize,(page+1)*pageSize-1);
+  const {data} = await q.order("id",{ascending:false}).limit(200);
 
-  const {data} = await query;
+  let html="<table class='table'><tr><th>Battery</th><th>Vehicle</th><th>Status</th></tr>";
 
-  dataStore=data;
+  data.forEach(r=>{
+    const c=code(r.battery_id);
+    if(s && !c.includes(s)) return;
 
-  renderTable();
-}
-
-// ===== TABLE =====
-function renderTable(){
-
-  const search=document.getElementById("search").value.toUpperCase();
-  const filter=document.getElementById("filter").value;
-
-  let html="<table class='table'><tr><th>Battery</th><th>IN</th><th>OUT</th><th>Status</th></tr>";
-
-  dataStore.forEach(r=>{
-    const code=extractCode(r.battery_id);
-
-    if(search && !code.includes(search)) return;
-    if(filter==="IN" && r.time_out!==null) return;
-    if(filter==="OUT" && r.time_out===null) return;
-
-    html+=`
-    <tr>
-    <td>${code}</td>
-    <td>${r.vehicle_in||"-"}</td>
-    <td>${r.vehicle_out||"-"}</td>
-    <td>${r.time_out===null?"IN":"OUT"}</td>
+    html+=`<tr>
+    <td>${c}</td>
+    <td>${r.vehicle_in}</td>
+    <td>${r.time_out?"OUT":"IN"}</td>
     </tr>`;
   });
 
   html+="</table>";
 
-  document.getElementById("tableContainer").innerHTML=html;
+  document.getElementById("table").innerHTML=html;
 }
 
-// ===== PAGINATION =====
-function nextPage(){page++;loadTransactions();}
-function prevPage(){if(page>0){page--;loadTransactions();}}
+// ===== EXPORT =====
+async function exportCSV(){
+
+  const {data} = await db.from("battery_swaps").select("*");
+
+  let csv="Battery,Vehicle,Status\n";
+
+  data.forEach(r=>{
+    csv+=`${code(r.battery_id)},${r.vehicle_in},${r.time_out?"OUT":"IN"}\n`;
+  });
+
+  const blob=new Blob([csv]);
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="data.csv";
+  a.click();
+}
 
 // ===== ANALYTICS =====
 async function loadAnalytics(){
 
-  const {data}=await db.from("battery_swaps").select("*");
+  const {data} = await db.from("battery_swaps").select("*");
 
-  const map={};
-  const batteryMap={};
+  const map={}, revMap={}, vehicleMap={};
 
   data.forEach(r=>{
     if(r.date_in){
       map[r.date_in]=(map[r.date_in]||0)+1;
+      revMap[r.date_in]=(revMap[r.date_in]||0)+(r.time_out?PRICE:0);
     }
 
-    const code=extractCode(r.battery_id);
-    batteryMap[code]=(batteryMap[code]||0)+1;
+    vehicleMap[r.vehicle_in]=(vehicleMap[r.vehicle_in]||0)+1;
   });
 
   const labels=Object.keys(map);
-  const values=labels.map(k=>map[k]);
 
-  if(mainChart) mainChart.destroy();
-  mainChart=new Chart(document.getElementById("mainChart"),{
+  if(chart1) chart1.destroy();
+  chart1=new Chart(chart1=document.getElementById("chart1"),{
+    type:"line",
+    data:{labels,datasets:[{label:"Swaps",data:labels.map(d=>map[d])}]}
+  });
+
+  if(chart2) chart2.destroy();
+  chart2=new Chart(chart2=document.getElementById("chart2"),{
     type:"bar",
-    data:{labels,datasets:[{data:values,label:"Swaps"}]}
+    data:{labels,datasets:[{label:"Revenue",data:labels.map(d=>revMap[d])}]}
   });
 
-  // top batteries
-  let sorted=Object.entries(batteryMap)
-    .sort((a,b)=>b[1]-a[1])
-    .slice(0,5);
+  let top=Object.entries(vehicleMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
 
-  let html="<h3>Top Batteries</h3>";
-  sorted.forEach(([c,v])=>{
-    html+=`<div>${c} (${v})</div>`;
-  });
+  let html="<h3>Top Vehicles</h3>";
+  top.forEach(([v,c])=>html+=`<div>${v} (${c})</div>`);
 
-  document.getElementById("topBatteries").innerHTML=html;
+  document.getElementById("topVehicles").innerHTML=html;
 }
 
 // ===== INIT =====
