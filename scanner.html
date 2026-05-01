@@ -526,15 +526,15 @@ async function confirmProcess(){
       if(exist && exist.length > 0) throw new Error("Battery is already checked IN");
 
       const {error} = await db.from("battery_swaps").insert([{
-        user_id: currentUser.id,
-        user_email: currentUser.email
-        battery_id: bid,
-        model: battery.model,
-        vehicle_in: vno,
-        mileage_in: parseInt(mil, 10),
-        date_in: now.date,
-        time_in: now.time
-      }]);
+      battery_id: bid,
+      model: battery.model,
+      vehicle_in: vno,
+      mileage_in: parseInt(mil, 10),
+      date_in: now.date,
+      time_in: now.time,
+      user_id: currentUser.id,
+      user_email: currentUser.email
+}]);
 
       if(error) throw error;
       setStatus("✅ Battery IN logged", "ok");
@@ -558,14 +558,14 @@ async function confirmProcess(){
 
       const {error} = await db
         .from("battery_swaps")
-        .update({
-          user_id: currentUser.id,
-          user_email: currentUser.email
-          vehicle_out: vno,
-          mileage_out: mileageOut,
-          date_out: now.date,
-          time_out: now.time
-        })
+       .update({
+        vehicle_out: vno,
+        mileage_out: mileageOut,
+        date_out: now.date,
+        time_out: now.time,
+        user_id: currentUser.id,
+        user_email: currentUser.email
+})
         .eq("id", exist[0].id);
 
       if(error) throw error;
@@ -584,6 +584,29 @@ async function confirmProcess(){
     lockUI(false);
   }
 }
+
+// ===== PWA INSTALL =====
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+
+  const btn = document.createElement("button");
+  btn.className = "btn-scan";
+  btn.innerText = "📲 INSTALL APP";
+
+  btn.onclick = async () => {
+    deferredPrompt.prompt();
+    deferredPrompt = null;
+  };
+
+  const target = document.getElementById("scannerBox");
+  if(target){
+    target.appendChild(btn);
+  }
+});
+
 </script>
 </body>
 </html>
