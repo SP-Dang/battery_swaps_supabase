@@ -240,6 +240,10 @@ td{
   color:var(--text);
   vertical-align:middle;
 }
+table th, table td {
+  text-align: center;
+  vertical-align: middle;
+}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--surface2)}
 
@@ -565,16 +569,30 @@ function renderVehicleTable(data){
     return;
   }
 
+  // 👉 Convert email → name
+  function getName(email){
+    if(!email) return "-";
+    return email.split("@")[0]; // somphone@gmail.com → somphone
+  }
+
   let html = `<table>
-    <thead><tr>
-      <th>Vehicle</th><th>Battery</th><th>Model</th>
-      <th>Mileage IN</th><th>Distance</th><th>Status</th>
-    </tr></thead><tbody>`;
+    <thead>
+      <tr>
+        <th>Vehicle</th>
+        <th>Battery</th>
+        <th>Model</th>
+        <th>Mileage IN</th>
+        <th>Distance</th>
+        <th>Status</th>
+        <th>Staff</th>
+      </tr>
+    </thead>
+    <tbody>`;
 
   data.forEach(r => {
-    // FIX: properly calculate distance and flag negative or impossible values
     let dist = "-";
     let rowFlag = false;
+
     if(r.mileage_in != null && r.mileage_out != null){
       const diff = parseInt(r.mileage_out) - parseInt(r.mileage_in);
       dist = diff + " km";
@@ -587,7 +605,14 @@ function renderVehicleTable(data){
       <td>${r.model || "-"}</td>
       <td>${r.mileage_in != null ? r.mileage_in + " km" : "-"}</td>
       <td>${rowFlag ? `<span class="badge badge-alert">${dist}</span>` : dist}</td>
-      <td><span class="badge ${r.time_out ? "badge-out" : "badge-in"}">${r.time_out ? "OUT" : "IN"}</span></td>
+      <td>
+        <span class="badge ${r.time_out ? "badge-out" : "badge-in"}">
+          ${r.time_out ? "OUT" : "IN"}
+        </span>
+      </td>
+      <td title="${r.user_email || ""}">
+        ${getName(r.user_email)}
+      </td>
     </tr>`;
   });
 
