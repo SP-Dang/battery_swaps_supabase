@@ -14,66 +14,71 @@ body{font-family:sans-serif;background:#f4f6f8;margin:0}
 .header{text-align:center}
 .lsm{color:#ff4500;font-weight:bold}
 
+/* NAV */
 .nav{display:flex;gap:10px;margin:20px 0}
 .nav button{flex:1;padding:12px;border:none;border-radius:8px;background:#ddd;font-weight:bold}
 .nav button.active{background:#3498db;color:#fff}
 
+/* CARDS */
 .card{background:#fff;padding:15px;border-radius:10px;margin-bottom:15px}
 
-.row{display:flex;gap:10px;flex-wrap:wrap}
-
 /* KPI */
-.stat{
-  flex:1;
-  padding:15px;
-  border-radius:10px;
-  color:#fff;
-  text-align:center;
-  font-weight:bold
-}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.stat{flex:1;padding:15px;border-radius:10px;color:#fff;text-align:center;font-weight:bold}
 .in{background:#27ae60}
 .out{background:#e67e22}
 .stay{background:#8e44ad}
 .swap{background:#3498db}
 .rev{background:#2c3e50}
 
-/* Layout split */
-.split{
-  display:flex;
-  gap:10px;
-}
+/* SPLIT */
+.split{display:flex;gap:10px}
 .left{flex:2}
 .right{flex:1}
 
-/* Table */
+/* TABLE */
+.table-container{max-height:400px;overflow:auto}
 .table{width:100%;border-collapse:collapse}
 .table th,.table td{
   border-bottom:1px solid #ddd;
   padding:8px;
   text-align:center;
 }
+.table th{
+  position:sticky;
+  top:0;
+  background:#fff;
+}
 
-/* Inputs */
+/* ALERT ROW */
+.bad-row{background:#ffe6e6}
+
+/* FILTER */
 .filter-row{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:10px;
 }
-.left-inputs{
-  display:flex;
-  gap:5px;
-}
-.left-inputs input{
-  width:130px;
-  padding:8px;
-}
-.search{
-  width:200px;
-  padding:8px;
-}
+.left-inputs{display:flex;gap:5px}
+.left-inputs input{width:120px;padding:8px}
+.search{width:200px;padding:8px}
 
-button{padding:8px 12px;margin-top:5px}
+/* MODAL */
+.modal{
+  position:fixed;
+  top:0;left:0;
+  width:100%;height:100%;
+  background:rgba(0,0,0,0.5);
+  display:none;
+  justify-content:center;
+  align-items:center;
+}
+.modal-content{
+  background:#fff;
+  padding:20px;
+  border-radius:10px;
+  width:400px;
+}
 
 </style>
 </head>
@@ -82,7 +87,6 @@ button{padding:8px 12px;margin-top:5px}
 
 <div class="container">
 
-<!-- HEADER -->
 <div class="header">
 <h1><span class="lsm">LSM</span> Battery Swaps Dashboard</h1>
 <div>Powered by somphone.dang@gmail.com</div>
@@ -98,7 +102,6 @@ button{padding:8px 12px;margin-top:5px}
 <!-- OVERVIEW -->
 <div id="overview">
 
-<!-- KPI -->
 <div class="card">
 <div class="row">
 <div class="stat in" id="in"></div>
@@ -109,18 +112,17 @@ button{padding:8px 12px;margin-top:5px}
 </div>
 </div>
 
-<!-- SPLIT -->
 <div class="split">
 
-<!-- LEFT -->
 <div class="card left">
-<h3>🚗 Vehicle Activity (Today)</h3>
+<h3>🚗 Vehicle Activity</h3>
+<div class="table-container">
 <div id="vehicleTable"></div>
 </div>
+</div>
 
-<!-- RIGHT -->
 <div class="card right">
-<h3>⚠️ Battery Alerts (Low Mileage)</h3>
+<h3>⚠️ Battery Alerts</h3>
 <div id="alerts"></div>
 </div>
 
@@ -132,23 +134,19 @@ button{padding:8px 12px;margin-top:5px}
 <div id="transactions" style="display:none">
 
 <div class="card">
-
 <div class="filter-row">
-  <div class="left-inputs">
-    <input type="date" id="from">
-    <input type="date" id="to">
-  </div>
-
-  <input id="search" class="search" placeholder="Search Battery">
+<div class="left-inputs">
+<input type="date" id="from">
+<input type="date" id="to">
+</div>
+<input id="search" class="search" placeholder="Search Battery">
 </div>
 
 <button onclick="loadTransactions()">Load</button>
 <button onclick="exportCSV()">Export</button>
-
 </div>
 
-<div class="card" id="table"></div>
-<div class="card" id="modelSummary"></div>
+<div class="card table-container" id="table"></div>
 
 </div>
 
@@ -156,12 +154,17 @@ button{padding:8px 12px;margin-top:5px}
 <div id="analytics" style="display:none">
 
 <div class="card">
-<h3>🔋 Current Inventory (IN Shop)</h3>
+<h3>🔋 Inventory (IN Shop)</h3>
 <div id="inventory"></div>
 </div>
 
 </div>
 
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+<div class="modal-content" id="modalContent"></div>
 </div>
 
 <script>
@@ -170,214 +173,176 @@ const db = supabase.createClient(
 "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A"
 );
 
-const PRICE = 15000;
+const PRICE=15000;
 
 // TAB
 function tab(t){
-  ["overview","transactions","analytics"].forEach(x=>{
-    document.getElementById(x).style.display="none";
-  });
-  document.getElementById(t).style.display="block";
-
-  ["t1","t2","t3"].forEach(x=>{
-    document.getElementById(x).classList.remove("active");
-  });
-  event.target.classList.add("active");
+["overview","transactions","analytics"].forEach(x=>{
+document.getElementById(x).style.display="none";
+});
+document.getElementById(t).style.display="block";
 }
 
 // UTIL
 function code(x){
-  try{return JSON.parse(x).code}catch{return x}
+try{return JSON.parse(x).code}catch{return x}
 }
 
 // OVERVIEW
 async function loadOverview(){
 
-  const today = new Date().toISOString().split("T")[0];
+const today=new Date().toISOString().split("T")[0];
 
-  const {data} = await db
-    .from("battery_swaps")
-    .select("*")
-    .eq("date_in", today);
+const {data}=await db.from("battery_swaps").select("*").eq("date_in",today);
 
-  let IN=0, OUT=0, stay=0;
+let IN=0,OUT=0,stay=0;
 
-  data.forEach(r=>{
-    IN++;
-    if(r.time_out) OUT++;
-    else stay++;
-  });
+data.forEach(r=>{
+IN++;
+if(r.time_out) OUT++; else stay++;
+});
 
-  document.getElementById("in").innerText="IN: "+IN;
-  document.getElementById("out").innerText="OUT: "+OUT;
-  document.getElementById("stay").innerText="Stay: "+stay;
-  document.getElementById("swap").innerText="Swaps: "+OUT;
-  document.getElementById("revenue").innerText="Revenue: "+(OUT*PRICE)+" LAK";
+document.getElementById("in").innerText="IN: "+IN;
+document.getElementById("out").innerText="OUT: "+OUT;
+document.getElementById("stay").innerText="Stay: "+stay;
+document.getElementById("swap").innerText="Swaps: "+OUT;
+document.getElementById("revenue").innerText="Revenue: "+(OUT*PRICE)+" LAK";
 
-  renderVehicleTable(data);
-  checkAlert(data);
+renderVehicleTable(data);
+renderAlerts(data);
 }
 
-// VEHICLE TABLE (UPDATED)
+// VEHICLE TABLE
 function renderVehicleTable(data){
 
-  let html=`
-  <table class="table">
-  <tr>
-  <th>Vehicle</th>
-  <th>Battery</th>
-  <th>Model</th>
-  <th>Mileage</th>
-  <th>Status</th>
-  </tr>`;
+let html=`<table class="table">
+<tr>
+<th>Vehicle</th>
+<th>Battery</th>
+<th>Model</th>
+<th>Mileage</th>
+<th>Status</th>
+</tr>`;
 
-  data.forEach(r=>{
-    html+=`
-    <tr>
-    <td>${r.vehicle_in||"-"}</td>
-    <td>${code(r.battery_id)}</td>
-    <td>${r.model||"-"}</td>
-    <td>${r.mileage_in||"-"}</td>
-    <td>${r.time_out?"OUT":"IN"}</td>
-    </tr>`;
-  });
+data.forEach(r=>{
 
-  html+="</table>";
-  document.getElementById("vehicleTable").innerHTML=html;
+let diff = r.mileage_out && r.mileage_in ? r.mileage_out-r.mileage_in : 100;
+
+html+=`
+<tr class="${diff<50?'bad-row':''}" onclick="showHistory('${code(r.battery_id)}')">
+<td>${r.vehicle_in}</td>
+<td>${code(r.battery_id)}</td>
+<td>${r.model||"-"}</td>
+<td>${r.mileage_in||"-"}</td>
+<td>${r.time_out?"OUT":"IN"}</td>
+</tr>`;
+});
+
+html+="</table>";
+
+document.getElementById("vehicleTable").innerHTML=html;
 }
 
-// ALERT
-function checkAlert(data){
+// ALERT (ENHANCED)
+function renderAlerts(data){
 
-  let alerts=[];
+let alerts=[];
 
-  data.forEach(r=>{
-    if(r.mileage_in && r.mileage_out){
-      let diff=r.mileage_out-r.mileage_in;
-      if(diff<50){
-        alerts.push(`${code(r.battery_id)} → ${diff}km`);
-      }
-    }
-  });
+data.forEach(r=>{
+if(r.mileage_in && r.mileage_out){
+let diff=r.mileage_out-r.mileage_in;
+if(diff<50){
+alerts.push(`
+<div>
+<b>${code(r.battery_id)}</b><br>
+Vehicle: ${r.vehicle_in}<br>
+Mileage: ${diff} km
+</div><hr>`);
+}
+}
+});
 
-  const el=document.getElementById("alerts");
+const el=document.getElementById("alerts");
 
-  if(alerts.length===0){
-    el.innerHTML="✅ Normal";
-    el.style.color="green";
-  }else{
-    el.innerHTML=alerts.join("<br>");
-    el.style.color="red";
-  }
+if(alerts.length===0){
+el.innerHTML="✅ All normal";
+el.style.color="green";
+}else{
+el.innerHTML=alerts.join("");
+el.style.color="red";
+}
 }
 
 // TRANSACTIONS
 async function loadTransactions(){
 
-  let q=db.from("battery_swaps").select("*");
+let {data}=await db.from("battery_swaps").select("*").limit(300);
 
-  const from=document.getElementById("from").value;
-  const to=document.getElementById("to").value;
-  const s=document.getElementById("search").value.toUpperCase();
+let html=`<table class="table">
+<tr>
+<th>Battery</th>
+<th>Model</th>
+<th>Vehicle</th>
+<th>Mileage</th>
+<th>Date</th>
+<th>Time</th>
+<th>Status</th>
+</tr>`;
 
-  if(from) q=q.gte("date_in",from);
-  if(to) q=q.lte("date_in",to);
+data.forEach(r=>{
+html+=`
+<tr>
+<td>${code(r.battery_id)}</td>
+<td>${r.model}</td>
+<td>${r.vehicle_in}</td>
+<td>${r.mileage_in}</td>
+<td>${r.date_in}</td>
+<td>${r.time_in}</td>
+<td>${r.time_out?"OUT":"IN"}</td>
+</tr>`;
+});
 
-  const {data}=await q.order("id",{ascending:false}).limit(300);
+html+="</table>";
 
-  let html=`
-  <table class="table">
-  <tr>
-  <th>Battery</th>
-  <th>Model</th>
-  <th>Vehicle</th>
-  <th>Mileage</th>
-  <th>Date</th>
-  <th>Time</th>
-  <th>Status</th>
-  </tr>`;
-
-  data.forEach(r=>{
-    const c=code(r.battery_id);
-    if(s && !c.includes(s)) return;
-
-    html+=`
-    <tr>
-    <td>${c}</td>
-    <td>${r.model||"-"}</td>
-    <td>${r.vehicle_in||"-"}</td>
-    <td>${r.mileage_in||"-"}</td>
-    <td>${r.date_in||"-"}</td>
-    <td>${r.time_in||"-"}</td>
-    <td>${r.time_out?"OUT":"IN"}</td>
-    </tr>`;
-  });
-
-  html+="</table>";
-
-  document.getElementById("table").innerHTML=html;
-
-  modelSummary(data);
+document.getElementById("table").innerHTML=html;
 }
 
-// MODEL SUMMARY
-function modelSummary(data){
+// MODAL
+async function showHistory(battery){
 
-  let map={};
+const {data}=await db.from("battery_swaps")
+.select("*")
+.ilike("battery_id","%"+battery+"%")
+.limit(10);
 
-  data.forEach(r=>{
-    const m=r.model||"Unknown";
-    map[m]=(map[m]||0)+1;
-  });
+let html="<h3>History</h3>";
 
-  let html="<h3>Model Summary</h3>";
+data.forEach(r=>{
+html+=`<div>${r.date_in} - ${r.time_in}</div>`;
+});
 
-  Object.entries(map).forEach(([m,c])=>{
-    html+=`<div>${m}: ${c}</div>`;
-  });
-
-  document.getElementById("modelSummary").innerHTML=html;
+document.getElementById("modalContent").innerHTML=html;
+document.getElementById("modal").style.display="flex";
 }
 
-// EXPORT
-async function exportCSV(){
-  const {data}=await db.from("battery_swaps").select("*");
-
-  let csv="Battery,Model,Vehicle,Status\n";
-
-  data.forEach(r=>{
-    csv+=`${code(r.battery_id)},${r.model},${r.vehicle_in},${r.time_out?"OUT":"IN"}\n`;
-  });
-
-  const blob=new Blob([csv]);
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="data.csv";
-  a.click();
-}
+document.getElementById("modal").onclick=()=>document.getElementById("modal").style.display="none";
 
 // INVENTORY
 async function loadInventory(){
-  const {data}=await db.from("battery_swaps").select("*");
 
-  let active=data.filter(r=>r.time_out===null);
+const {data}=await db.from("battery_swaps").select("*");
 
-  let html=`<table class="table">
-  <tr><th>Battery</th><th>Model</th><th>Vehicle</th><th>Time</th></tr>`;
+let active=data.filter(r=>r.time_out===null);
 
-  active.forEach(r=>{
-    html+=`
-    <tr>
-    <td>${code(r.battery_id)}</td>
-    <td>${r.model}</td>
-    <td>${r.vehicle_in}</td>
-    <td>${r.time_in}</td>
-    </tr>`;
-  });
+let html="<table class='table'><tr><th>Battery</th><th>Vehicle</th></tr>";
 
-  html+="</table>";
+active.forEach(r=>{
+html+=`<tr><td>${code(r.battery_id)}</td><td>${r.vehicle_in}</td></tr>`;
+});
 
-  document.getElementById("inventory").innerHTML=html;
+html+="</table>";
+
+document.getElementById("inventory").innerHTML=html;
 }
 
 // INIT
@@ -385,7 +350,25 @@ loadOverview();
 loadTransactions();
 loadInventory();
 
-setInterval(loadOverview,5000);
+db
+.channel('realtime-swaps')
+.on(
+  'postgres_changes',
+  {
+    event: '*',
+    schema: 'public',
+    table: 'battery_swaps'
+  },
+  (payload) => {
+    console.log("Realtime update:", payload);
+
+    loadOverview();
+    loadTransactions();
+    loadInventory();
+  }
+)
+.subscribe();
+
 
 </script>
 
