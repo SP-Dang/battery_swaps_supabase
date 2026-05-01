@@ -7,6 +7,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00e5a0">
 
 <style>
 :root{
@@ -239,6 +241,14 @@ button:disabled{opacity:0.4;cursor:not-allowed}
 
 <body>
 
+<div id="authBox" class="card" style="max-width:420px;margin:auto">
+  <h3 style="margin-bottom:10px">🔐 Staff Login</h3>
+  <input id="email" placeholder="Email" style="width:100%;margin:5px 0;padding:10px">
+  <input id="password" type="password" placeholder="Password" style="width:100%;margin:5px 0;padding:10px">
+  <button onclick="login()" style="width:100%;padding:12px;margin-top:10px">Login</button>
+  <div id="authStatus" style="margin-top:10px;color:#ff6b35"></div>
+</div>
+  
 <!-- CONFIRM MODAL -->
 <div class="modal-bg" id="confirmModal">
   <div class="modal">
@@ -251,7 +261,7 @@ button:disabled{opacity:0.4;cursor:not-allowed}
   </div>
 </div>
 
-<div class="card">
+<div class="card" id="scannerBox" style="display:none;">
   <div class="header">
     <div class="header-icon">🔋</div>
     <div>
@@ -296,6 +306,7 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let scanner = null;
 let scanning = false;
 let pendingAction = null; // { type, bid, vno, mil, battery }
+let currentUser = null;
 
 // ===== CLOCK =====
 function updateClock(){
@@ -331,6 +342,43 @@ function getNow(){
   };
 }
 
+async function login(){
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const {data, error} = await db.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if(error){
+    document.getElementById("authStatus").innerText = "❌ " + error.message;
+    return;
+  }
+
+  currentUser = data.user;
+
+  document.getElementById("authBox").style.display = "none";
+  document.getElementById("scannerBox").style.display = "block";
+
+  setStatus("✅ Logged in: " + currentUser.email, "ok");
+}
+
+  
+async function checkSession(){
+  const {data} = await db.auth.getSession();
+
+  if(data.session){
+    currentUser = data.session.user;
+
+    document.getElementById("authBox").style.display = "none";
+    document.getElementById("scannerBox").style.display = "block";
+  }
+}
+
+checkSession();
+  
+  
 // ===== SCANNER =====
 async function closeScanner(){
   if(scanner){
@@ -391,6 +439,9 @@ document.getElementById("scanBtn").onclick = async () => {
 // ===== REQUEST (shows confirm modal) =====
 // FIX: Added confirmation step to prevent fat-finger errors
 async function requestProcess(type){
+  if(!currentUser){
+  return setStatus("❌ Please login first", "err");
+}
   const bid = sanitize(document.getElementById("bid").value).toUpperCase();
   const vno = sanitize(document.getElementById("vno").value);
   const milRaw = document.getElementById("mil").value.trim();
@@ -475,6 +526,8 @@ async function confirmProcess(){
       if(exist && exist.length > 0) throw new Error("Battery is already checked IN");
 
       const {error} = await db.from("battery_swaps").insert([{
+        user_id: currentUser.id,
+        user_email: currentUser.email
         battery_id: bid,
         model: battery.model,
         vehicle_in: vno,
@@ -506,6 +559,8 @@ async function confirmProcess(){
       const {error} = await db
         .from("battery_swaps")
         .update({
+          user_id: currentUser.id,
+          user_email: currentUser.email
           vehicle_out: vno,
           mileage_out: mileageOut,
           date_out: now.date,
