@@ -511,6 +511,9 @@ tr:hover td{background:var(--surface2)}
       <div>
         <div class="card">
           <div class="card-title">🚗 Vehicle Activity — Today</div>
+          <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px">
+          Showing latest 50 records
+          </div>
           <div class="table-wrap" id="vehicleTable">
             <div class="skeleton" style="height:40px"></div>
             <div class="skeleton" style="height:40px;opacity:.7"></div>
@@ -640,7 +643,9 @@ async function loadOverview(){
   document.getElementById("kStay").innerText = stay;
   document.getElementById("kSwap").innerText = OUT;
   document.getElementById("kRev").innerText  = "₭" + (OUT * PRICE).toLocaleString();
-
+  // ✅ LIMIT ONLY TABLE DATA (last 50 rows)
+  const tableData = todayData.slice(0, 50);
+  
   renderVehicleTable(todayData);
   renderAlerts(todayData);
   renderFreq(todayData);
