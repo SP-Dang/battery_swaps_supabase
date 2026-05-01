@@ -173,203 +173,252 @@ const db = supabase.createClient(
 "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A"
 );
 
-const PRICE=15000;
+const PRICE = 15000;
 
-// TAB
-function tab(t){
-["overview","transactions","analytics"].forEach(x=>{
-document.getElementById(x).style.display="none";
-});
-document.getElementById(t).style.display="block";
+let cachedData = []; // store filtered data
+
+// ===== TAB (FIXED ACTIVE STATE)
+function tab(t, el){
+  ["overview","transactions","analytics"].forEach(x=>{
+    document.getElementById(x).style.display="none";
+  });
+
+  document.getElementById(t).style.display="block";
+
+  document.querySelectorAll(".nav button").forEach(b=>{
+    b.classList.remove("active");
+  });
+
+  el.classList.add("active");
 }
 
-// UTIL
+// ===== UTIL
 function code(x){
-try{return JSON.parse(x).code}catch{return x}
+  try{return JSON.parse(x).code}catch{return x}
 }
 
-// OVERVIEW
+// ===== OVERVIEW
 async function loadOverview(){
 
-const today=new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0];
 
-const {data}=await db.from("battery_swaps").select("*").eq("date_in",today);
+  const {data} = await db
+    .from("battery_swaps")
+    .select("*")
+    .eq("date_in", today);
 
-let IN=0,OUT=0,stay=0;
+  let IN=0, OUT=0, stay=0;
 
-data.forEach(r=>{
-IN++;
-if(r.time_out) OUT++; else stay++;
-});
+  data.forEach(r=>{
+    IN++;
+    if(r.time_out) OUT++; else stay++;
+  });
 
-document.getElementById("in").innerText="IN: "+IN;
-document.getElementById("out").innerText="OUT: "+OUT;
-document.getElementById("stay").innerText="Stay: "+stay;
-document.getElementById("swap").innerText="Swaps: "+OUT;
-document.getElementById("revenue").innerText="Revenue: "+(OUT*PRICE)+" LAK";
+  document.getElementById("in").innerText="IN: "+IN;
+  document.getElementById("out").innerText="OUT: "+OUT;
+  document.getElementById("stay").innerText="Stay: "+stay;
+  document.getElementById("swap").innerText="Swaps: "+OUT;
+  document.getElementById("revenue").innerText="Revenue: "+(OUT*PRICE)+" LAK";
 
-renderVehicleTable(data);
-renderAlerts(data);
+  renderVehicleTable(data);
+  renderAlerts(data);
+  renderFrequency(data);
 }
 
-// VEHICLE TABLE
+// ===== VEHICLE TABLE
 function renderVehicleTable(data){
 
-let html=`<table class="table">
-<tr>
-<th>Vehicle</th>
-<th>Battery</th>
-<th>Model</th>
-<th>Mileage</th>
-<th>Status</th>
-</tr>`;
+  let html=`<table class="table">
+  <tr>
+  <th>Vehicle</th>
+  <th>Battery</th>
+  <th>Model</th>
+  <th>Mileage</th>
+  <th>Status</th>
+  </tr>`;
 
-data.forEach(r=>{
+  data.forEach(r=>{
+    let diff = r.mileage_out && r.mileage_in ? r.mileage_out-r.mileage_in : 100;
 
-let diff = r.mileage_out && r.mileage_in ? r.mileage_out-r.mileage_in : 100;
+    html+=`
+    <tr class="${diff<50?'bad-row':''}">
+    <td>${r.vehicle_in||"-"}</td>
+    <td>${code(r.battery_id)}</td>
+    <td>${r.model||"-"}</td>
+    <td>${r.mileage_in||"-"}</td>
+    <td>${r.time_out?"OUT":"IN"}</td>
+    </tr>`;
+  });
 
-html+=`
-<tr class="${diff<50?'bad-row':''}" onclick="showHistory('${code(r.battery_id)}')">
-<td>${r.vehicle_in}</td>
-<td>${code(r.battery_id)}</td>
-<td>${r.model||"-"}</td>
-<td>${r.mileage_in||"-"}</td>
-<td>${r.time_out?"OUT":"IN"}</td>
-</tr>`;
-});
+  html+="</table>";
 
-html+="</table>";
-
-document.getElementById("vehicleTable").innerHTML=html;
+  document.getElementById("vehicleTable").innerHTML=html;
 }
 
-// ALERT (ENHANCED)
+// ===== ALERT
 function renderAlerts(data){
 
-let alerts=[];
+  let alerts=[];
 
-data.forEach(r=>{
-if(r.mileage_in && r.mileage_out){
-let diff=r.mileage_out-r.mileage_in;
-if(diff<50){
-alerts.push(`
-<div>
-<b>${code(r.battery_id)}</b><br>
-Vehicle: ${r.vehicle_in}<br>
-Mileage: ${diff} km
-</div><hr>`);
-}
-}
-});
+  data.forEach(r=>{
+    if(r.mileage_in && r.mileage_out){
+      let diff=r.mileage_out-r.mileage_in;
+      if(diff<50){
+        alerts.push(`
+        <div>
+        <b>${code(r.battery_id)}</b><br>
+        Vehicle: ${r.vehicle_in}<br>
+        ${diff} km
+        </div><hr>`);
+      }
+    }
+  });
 
-const el=document.getElementById("alerts");
-
-if(alerts.length===0){
-el.innerHTML="✅ All normal";
-el.style.color="green";
-}else{
-el.innerHTML=alerts.join("");
-el.style.color="red";
-}
+  document.getElementById("alerts").innerHTML =
+    alerts.length ? alerts.join("") : "✅ All normal";
 }
 
-// TRANSACTIONS
+// ===== NEW: VEHICLE FREQUENCY CARD
+function renderFrequency(data){
+
+  let map = {};
+
+  data.forEach(r=>{
+    const v = r.vehicle_in;
+    if(!v) return;
+
+    if(!map[v]) map[v]=[];
+    map[v].push(r);
+  });
+
+  let html="<h3>🔁 Frequent Vehicles</h3>";
+
+  Object.entries(map).forEach(([v, arr])=>{
+    if(arr.length >= 2){
+      html+=`<div><b>${v}</b> (${arr.length} times)<br>`;
+
+      arr.forEach(x=>{
+        html+=`${code(x.battery_id)} - ${x.time_in}<br>`;
+      });
+
+      html+="</div><hr>";
+    }
+  });
+
+  // create card dynamically
+  let card = document.getElementById("freqCard");
+  if(!card){
+    card = document.createElement("div");
+    card.className="card right";
+    card.id="freqCard";
+    document.querySelector(".split").appendChild(card);
+  }
+
+  card.innerHTML = html || "No repeated vehicles";
+}
+
+// ===== TRANSACTIONS (FIXED FILTER)
 async function loadTransactions(){
 
-let {data}=await db.from("battery_swaps").select("*").limit(300);
+  let q = db.from("battery_swaps").select("*");
 
-let html=`<table class="table">
-<tr>
-<th>Battery</th>
-<th>Model</th>
-<th>Vehicle</th>
-<th>Mileage</th>
-<th>Date</th>
-<th>Time</th>
-<th>Status</th>
-</tr>`;
+  const from = document.getElementById("from").value;
+  const to = document.getElementById("to").value;
+  const s = document.getElementById("search").value.toUpperCase();
 
-data.forEach(r=>{
-html+=`
-<tr>
-<td>${code(r.battery_id)}</td>
-<td>${r.model}</td>
-<td>${r.vehicle_in}</td>
-<td>${r.mileage_in}</td>
-<td>${r.date_in}</td>
-<td>${r.time_in}</td>
-<td>${r.time_out?"OUT":"IN"}</td>
-</tr>`;
-});
+  if(from) q = q.gte("date_in", from);
+  if(to) q = q.lte("date_in", to);
 
-html+="</table>";
+  const {data} = await q.order("id",{ascending:false}).limit(500);
 
-document.getElementById("table").innerHTML=html;
+  cachedData = data; // store for export
+
+  let html=`<table class="table">
+  <tr>
+  <th>Battery</th>
+  <th>Model</th>
+  <th>Vehicle</th>
+  <th>Mileage</th>
+  <th>Date</th>
+  <th>Time</th>
+  <th>Status</th>
+  </tr>`;
+
+  data.forEach(r=>{
+    const c = code(r.battery_id);
+
+    if(s && !c.includes(s)) return;
+
+    html+=`
+    <tr>
+    <td>${c}</td>
+    <td>${r.model||"-"}</td>
+    <td>${r.vehicle_in||"-"}</td>
+    <td>${r.mileage_in||"-"}</td>
+    <td>${r.date_in||"-"}</td>
+    <td>${r.time_in||"-"}</td>
+    <td>${r.time_out?"OUT":"IN"}</td>
+    </tr>`;
+  });
+
+  html+="</table>";
+
+  document.getElementById("table").innerHTML = html;
 }
 
-// MODAL
-async function showHistory(battery){
+// ===== AUTO FILTER (NEW)
+document.getElementById("from").addEventListener("change", loadTransactions);
+document.getElementById("to").addEventListener("change", loadTransactions);
+document.getElementById("search").addEventListener("input", loadTransactions);
 
-const {data}=await db.from("battery_swaps")
-.select("*")
-.ilike("battery_id","%"+battery+"%")
-.limit(10);
+// ===== EXPORT (FIXED)
+function exportCSV(){
 
-let html="<h3>History</h3>";
+  let csv="Battery,Model,Vehicle,Mileage,Date,Time,Status\n";
 
-data.forEach(r=>{
-html+=`<div>${r.date_in} - ${r.time_in}</div>`;
-});
+  cachedData.forEach(r=>{
+    csv+=`${code(r.battery_id)},${r.model},${r.vehicle_in},${r.mileage_in},${r.date_in},${r.time_in},${r.time_out?"OUT":"IN"}\n`;
+  });
 
-document.getElementById("modalContent").innerHTML=html;
-document.getElementById("modal").style.display="flex";
+  const blob=new Blob([csv]);
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="transactions.csv";
+  a.click();
 }
 
-document.getElementById("modal").onclick=()=>document.getElementById("modal").style.display="none";
-
-// INVENTORY
+// ===== INVENTORY
 async function loadInventory(){
 
-const {data}=await db.from("battery_swaps").select("*");
+  const {data}=await db.from("battery_swaps").select("*");
 
-let active=data.filter(r=>r.time_out===null);
+  let active=data.filter(r=>r.time_out===null);
 
-let html="<table class='table'><tr><th>Battery</th><th>Vehicle</th></tr>";
+  let html="<table class='table'><tr><th>Battery</th><th>Vehicle</th></tr>";
 
-active.forEach(r=>{
-html+=`<tr><td>${code(r.battery_id)}</td><td>${r.vehicle_in}</td></tr>`;
-});
+  active.forEach(r=>{
+    html+=`<tr><td>${code(r.battery_id)}</td><td>${r.vehicle_in}</td></tr>`;
+  });
 
-html+="</table>";
+  html+="</table>";
 
-document.getElementById("inventory").innerHTML=html;
+  document.getElementById("inventory").innerHTML=html;
 }
 
-// INIT
+// ===== INIT
 loadOverview();
 loadTransactions();
 loadInventory();
 
-db
-.channel('realtime-swaps')
-.on(
-  'postgres_changes',
-  {
-    event: '*',
-    schema: 'public',
-    table: 'battery_swaps'
-  },
-  (payload) => {
-    console.log("Realtime update:", payload);
-
-    loadOverview();
-    loadTransactions();
-    loadInventory();
-  }
-)
+// ===== REALTIME
+db.channel('realtime-swaps')
+.on('postgres_changes',{event:'*',schema:'public',table:'battery_swaps'},
+()=>{
+  loadOverview();
+  loadTransactions();
+  loadInventory();
+})
 .subscribe();
-
-
 </script>
 
 </body>
