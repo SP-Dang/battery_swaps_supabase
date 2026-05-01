@@ -290,7 +290,9 @@ button:disabled{opacity:0.4;cursor:not-allowed}
     <button class="btn-action btn-in" onclick="requestProcess('IN')">⬇ IN</button>
     <button class="btn-action btn-out" onclick="requestProcess('OUT')">⬆ OUT</button>
   </div>
-
+  <button onclick="logout()" class="btn-scan" style="margin-top:10px">
+  🚪 LOGOUT
+  </button>
   <div id="status">Ready</div>
 </div>
 
@@ -342,6 +344,12 @@ function getNow(){
   };
 }
 
+async function logout(){
+  await db.auth.signOut();
+  location.reload();
+}
+
+  
 async function login(){
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
