@@ -803,7 +803,12 @@ async function loadAnalytics(){
 function exportCSV(){
   const source = txData.length ? txData : allData;
 
-  let csv = "Battery,Vehicle,Model,MileageIN,MileageOUT,Distance,DateIN,TimeIN,DateOUT,TimeOUT,Status\n";
+  // ✅ helper (email → name)
+  function getName(email){
+    return email ? email.split("@")[0] : "";
+  }
+
+  let csv = "Battery,Vehicle,Model,MileageIN,MileageOUT,Distance,DateIN,TimeIN,DateOUT,TimeOUT,Status,Staff\n";
 
   source.forEach(r => {
     const dist = (r.mileage_in != null && r.mileage_out != null)
@@ -814,15 +819,19 @@ function exportCSV(){
       r.mileage_in||"", r.mileage_out||"",
       dist, r.date_in||"", r.time_in||"",
       r.date_out||"", r.time_out||"",
-      r.time_out ? "OUT" : "IN"
+      r.time_out ? "OUT" : "IN",
+      getName(r.user_email) // ✅ ADDED ONLY THIS
     ].join(",") + "\n";
   });
 
-  csv += "\n=== ALERTS (<50km distance) ===\nBattery,Vehicle,Distance\n";
+  csv += "\n=== ALERTS (<50km distance) ===\nBattery,Vehicle,Distance,Staff\n";
+
   source.forEach(r => {
     if(r.mileage_in != null && r.mileage_out != null){
       const diff = parseInt(r.mileage_out) - parseInt(r.mileage_in);
-      if(diff < 50) csv += `${code(r.battery_id)},${r.vehicle_in},${diff}km\n`;
+      if(diff < 50){
+        csv += `${code(r.battery_id)},${r.vehicle_in},${diff}km,${getName(r.user_email)}\n`; // ✅ ADDED
+      }
     }
   });
 
