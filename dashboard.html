@@ -138,11 +138,10 @@ body{font-family:sans-serif;background:#f4f6f8;margin:0}
 <div class="left-inputs">
 <input type="date" id="from">
 <input type="date" id="to">
-</div>
-<input id="search" class="search" placeholder="Search Battery">
+<input id="searchBattery" placeholder="Search Battery">
+<input id="searchVehicle" placeholder="Search Vehicle">
 </div>
 
-<button onclick="loadTransactions()">Load</button>
 <button onclick="exportCSV()">Export</button>
 </div>
 
@@ -154,10 +153,14 @@ body{font-family:sans-serif;background:#f4f6f8;margin:0}
 <div id="analytics" style="display:none">
 
 <div class="card">
-<h3>🔋 Inventory (IN Shop)</h3>
-<div id="inventory"></div>
+<h3>Financial Summary</h3>
+<div id="finance"></div>
+<button onclick="exportCSV()">Export</button>
 </div>
 
+<div class="card">
+<h3>Swaps Trend</h3>
+<div id="chart"></div>
 </div>
 
 </div>
@@ -174,22 +177,22 @@ const db = supabase.createClient(
 );
 
 const PRICE = 15000;
+let cachedData = [];
 
-let cachedData = []; // store filtered data
-
-// ===== TAB (FIXED ACTIVE STATE)
+// ===== TAB FIX
 function tab(t, el){
-  ["overview","transactions","analytics"].forEach(x=>{
-    document.getElementById(x).style.display="none";
-  });
-
-  document.getElementById(t).style.display="block";
 
   document.querySelectorAll(".nav button").forEach(b=>{
     b.classList.remove("active");
   });
 
   el.classList.add("active");
+
+  ["overview","transactions","analytics"].forEach(x=>{
+    document.getElementById(x).style.display="none";
+  });
+
+  document.getElementById(t).style.display="block";
 }
 
 // ===== UTIL
@@ -238,10 +241,8 @@ function renderVehicleTable(data){
   </tr>`;
 
   data.forEach(r=>{
-    let diff = r.mileage_out && r.mileage_in ? r.mileage_out-r.mileage_in : 100;
-
     html+=`
-    <tr class="${diff<50?'bad-row':''}">
+    <tr>
     <td>${r.vehicle_in||"-"}</td>
     <td>${code(r.battery_id)}</td>
     <td>${r.model||"-"}</td>
@@ -264,120 +265,103 @@ function renderAlerts(data){
     if(r.mileage_in && r.mileage_out){
       let diff=r.mileage_out-r.mileage_in;
       if(diff<50){
-        alerts.push(`
-        <div>
-        <b>${code(r.battery_id)}</b><br>
-        Vehicle: ${r.vehicle_in}<br>
-        ${diff} km
-        </div><hr>`);
+        alerts.push(`${code(r.battery_id)} | ${r.vehicle_in} | ${diff}km`);
       }
     }
   });
 
   document.getElementById("alerts").innerHTML =
-    alerts.length ? alerts.join("") : "✅ All normal";
+    alerts.length ? alerts.join("<br>") : "✅ Normal";
 }
 
-// ===== NEW: VEHICLE FREQUENCY CARD
+// ===== FREQUENCY
 function renderFrequency(data){
 
-  let map = {};
+  let map={};
 
   data.forEach(r=>{
-    const v = r.vehicle_in;
+    const v=r.vehicle_in;
     if(!v) return;
-
     if(!map[v]) map[v]=[];
     map[v].push(r);
   });
 
-  let html="<h3>🔁 Frequent Vehicles</h3>";
+  let html="<h4>Frequent Vehicles</h4>";
 
-  Object.entries(map).forEach(([v, arr])=>{
-    if(arr.length >= 2){
-      html+=`<div><b>${v}</b> (${arr.length} times)<br>`;
-
+  Object.entries(map).forEach(([v,arr])=>{
+    if(arr.length>=2){
+      html+=`<div><b>${v}</b> (${arr.length})<br>`;
       arr.forEach(x=>{
         html+=`${code(x.battery_id)} - ${x.time_in}<br>`;
       });
-
       html+="</div><hr>";
     }
   });
 
-  // create card dynamically
-  let card = document.getElementById("freqCard");
-  if(!card){
-    card = document.createElement("div");
-    card.className="card right";
-    card.id="freqCard";
-    document.querySelector(".split").appendChild(card);
-  }
-
-  card.innerHTML = html || "No repeated vehicles";
+  document.getElementById("freq").innerHTML = html;
 }
 
-// ===== TRANSACTIONS (FIXED FILTER)
+// ===== TRANSACTIONS (AUTO FILTER)
 async function loadTransactions(){
 
-  let q = db.from("battery_swaps").select("*");
+  let q=db.from("battery_swaps").select("*");
 
-  const from = document.getElementById("from").value;
-  const to = document.getElementById("to").value;
-  const s = document.getElementById("search").value.toUpperCase();
+  const from=document.getElementById("from").value;
+  const to=document.getElementById("to").value;
+  const sb=document.getElementById("searchBattery").value.toUpperCase();
+  const sv=document.getElementById("searchVehicle").value.toUpperCase();
 
-  if(from) q = q.gte("date_in", from);
-  if(to) q = q.lte("date_in", to);
+  if(from) q=q.gte("date_in",from);
+  if(to) q=q.lte("date_in",to);
 
-  const {data} = await q.order("id",{ascending:false}).limit(500);
+  const {data}=await q.order("id",{ascending:false}).limit(500);
 
-  cachedData = data; // store for export
+  cachedData = data;
 
   let html=`<table class="table">
   <tr>
   <th>Battery</th>
-  <th>Model</th>
   <th>Vehicle</th>
+  <th>Model</th>
   <th>Mileage</th>
   <th>Date</th>
-  <th>Time</th>
   <th>Status</th>
   </tr>`;
 
   data.forEach(r=>{
-    const c = code(r.battery_id);
+    const c=code(r.battery_id);
 
-    if(s && !c.includes(s)) return;
+    if(sb && !c.includes(sb)) return;
+    if(sv && !(r.vehicle_in||"").toUpperCase().includes(sv)) return;
 
     html+=`
     <tr>
     <td>${c}</td>
-    <td>${r.model||"-"}</td>
-    <td>${r.vehicle_in||"-"}</td>
-    <td>${r.mileage_in||"-"}</td>
-    <td>${r.date_in||"-"}</td>
-    <td>${r.time_in||"-"}</td>
+    <td>${r.vehicle_in}</td>
+    <td>${r.model}</td>
+    <td>${r.mileage_in}</td>
+    <td>${r.date_in}</td>
     <td>${r.time_out?"OUT":"IN"}</td>
     </tr>`;
   });
 
   html+="</table>";
 
-  document.getElementById("table").innerHTML = html;
+  document.getElementById("table").innerHTML=html;
 }
 
-// ===== AUTO FILTER (NEW)
-document.getElementById("from").addEventListener("change", loadTransactions);
-document.getElementById("to").addEventListener("change", loadTransactions);
-document.getElementById("search").addEventListener("input", loadTransactions);
+// AUTO EVENTS
+["from","to","searchBattery","searchVehicle"].forEach(id=>{
+  document.getElementById(id).addEventListener("input", loadTransactions);
+});
 
-// ===== EXPORT (FIXED)
+// ===== EXPORT
 function exportCSV(){
 
-  let csv="Battery,Model,Vehicle,Mileage,Date,Time,Status\n";
+  let csv="Battery,Vehicle,Model,Date,Status\n";
 
   cachedData.forEach(r=>{
-    csv+=`${code(r.battery_id)},${r.model},${r.vehicle_in},${r.mileage_in},${r.date_in},${r.time_in},${r.time_out?"OUT":"IN"}\n`;
+    csv+=`${code(r.battery_id)},${r.vehicle_in},${r.model},${r.date_in},${r.time_out?"OUT":"IN"}\n`;
   });
 
   const blob=new Blob([csv]);
@@ -387,38 +371,58 @@ function exportCSV(){
   a.click();
 }
 
-// ===== INVENTORY
-async function loadInventory(){
+// ===== FINANCIAL SUMMARY
+async function loadAnalytics(){
 
   const {data}=await db.from("battery_swaps").select("*");
 
-  let active=data.filter(r=>r.time_out===null);
+  let total=0;
 
-  let html="<table class='table'><tr><th>Battery</th><th>Vehicle</th></tr>";
-
-  active.forEach(r=>{
-    html+=`<tr><td>${code(r.battery_id)}</td><td>${r.vehicle_in}</td></tr>`;
+  data.forEach(r=>{
+    if(r.time_out) total+=PRICE;
   });
 
-  html+="</table>";
+  document.getElementById("finance").innerHTML=
+    "Total Revenue: "+total+" LAK";
 
-  document.getElementById("inventory").innerHTML=html;
+  drawChart(data);
 }
 
-// ===== INIT
+// ===== SIMPLE CHART
+function drawChart(data){
+
+  let map={};
+
+  data.forEach(r=>{
+    const d=r.date_in;
+    if(!map[d]) map[d]=0;
+    if(r.time_out) map[d]+=1;
+  });
+
+  let html="";
+
+  Object.entries(map).slice(-7).forEach(([d,c])=>{
+    html+=`<div>${d}: ${c}</div>`;
+  });
+
+  document.getElementById("chart").innerHTML=html;
+}
+
+// INIT
 loadOverview();
 loadTransactions();
-loadInventory();
+loadAnalytics();
 
-// ===== REALTIME
-db.channel('realtime-swaps')
+// REALTIME
+db.channel('rt')
 .on('postgres_changes',{event:'*',schema:'public',table:'battery_swaps'},
 ()=>{
   loadOverview();
   loadTransactions();
-  loadInventory();
+  loadAnalytics();
 })
 .subscribe();
+
 </script>
 
 </body>
