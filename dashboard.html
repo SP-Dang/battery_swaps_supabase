@@ -19,11 +19,11 @@ body{font-family:sans-serif;background:#f4f6f8;margin:0}
 .nav button{flex:1;padding:12px;border:none;border-radius:8px;background:#ddd;font-weight:bold}
 .nav button.active{background:#3498db;color:#fff}
 
-/* CARDS */
+/* CARD */
 .card{background:#fff;padding:15px;border-radius:10px;margin-bottom:15px}
 
 /* KPI */
-.row{display:flex;gap:10px;flex-wrap:wrap}
+.row{display:flex;gap:10px}
 .stat{flex:1;padding:15px;border-radius:10px;color:#fff;text-align:center;font-weight:bold}
 .in{background:#27ae60}
 .out{background:#e67e22}
@@ -33,52 +33,23 @@ body{font-family:sans-serif;background:#f4f6f8;margin:0}
 
 /* SPLIT */
 .split{display:flex;gap:10px}
-.left{flex:2}
-.right{flex:1}
+.left{flex:3}
+.right{flex:1;display:flex;flex-direction:column;gap:10px}
 
 /* TABLE */
 .table-container{max-height:400px;overflow:auto}
 .table{width:100%;border-collapse:collapse}
-.table th,.table td{
-  border-bottom:1px solid #ddd;
-  padding:8px;
-  text-align:center;
-}
-.table th{
-  position:sticky;
-  top:0;
-  background:#fff;
-}
-
-/* ALERT ROW */
-.bad-row{background:#ffe6e6}
+.table th,.table td{border-bottom:1px solid #ddd;padding:8px;text-align:center}
+.table th{position:sticky;top:0;background:#fff}
 
 /* FILTER */
-.filter-row{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
+.filter-row{display:flex;justify-content:space-between;gap:10px}
 .left-inputs{display:flex;gap:5px}
-.left-inputs input{width:120px;padding:8px}
-.search{width:200px;padding:8px}
+.left-inputs input{width:130px;padding:8px}
+.search{width:180px;padding:8px}
 
-/* MODAL */
-.modal{
-  position:fixed;
-  top:0;left:0;
-  width:100%;height:100%;
-  background:rgba(0,0,0,0.5);
-  display:none;
-  justify-content:center;
-  align-items:center;
-}
-.modal-content{
-  background:#fff;
-  padding:20px;
-  border-radius:10px;
-  width:400px;
-}
+/* CHART */
+.bar{background:#3498db;color:#fff;margin:3px 0;padding:5px}
 
 </style>
 </head>
@@ -96,7 +67,7 @@ body{font-family:sans-serif;background:#f4f6f8;margin:0}
 <div class="nav">
 <button onclick="tab('overview', this)" class="active">Overview</button>
 <button onclick="tab('transactions', this)">Transactions</button>
-<button onclick="tab('analytics', this)">Analytics</button>
+<button onclick="tab('analytics', this)">Financial</button>
 </div>
 
 <!-- OVERVIEW -->
@@ -121,9 +92,18 @@ body{font-family:sans-serif;background:#f4f6f8;margin:0}
 </div>
 </div>
 
-<div class="card right">
+<div class="right">
+
+<div class="card">
 <h3>⚠️ Battery Alerts</h3>
 <div id="alerts"></div>
+</div>
+
+<div class="card">
+<h3>🔁 Frequent Vehicles</h3>
+<div id="freq"></div>
+</div>
+
 </div>
 
 </div>
@@ -138,8 +118,12 @@ body{font-family:sans-serif;background:#f4f6f8;margin:0}
 <div class="left-inputs">
 <input type="date" id="from">
 <input type="date" id="to">
-<input id="searchBattery" placeholder="Search Battery">
-<input id="searchVehicle" placeholder="Search Vehicle">
+</div>
+
+<div>
+<input id="searchBattery" class="search" placeholder="Battery">
+<input id="searchVehicle" class="search" placeholder="Vehicle">
+</div>
 </div>
 
 <button onclick="exportCSV()">Export</button>
@@ -153,21 +137,18 @@ body{font-family:sans-serif;background:#f4f6f8;margin:0}
 <div id="analytics" style="display:none">
 
 <div class="card">
-<h3>Financial Summary</h3>
+<h3>💰 Financial Summary</h3>
 <div id="finance"></div>
 <button onclick="exportCSV()">Export</button>
 </div>
 
 <div class="card">
-<h3>Swaps Trend</h3>
+<h3>📊 Last 7 Days</h3>
 <div id="chart"></div>
 </div>
 
 </div>
 
-<!-- MODAL -->
-<div class="modal" id="modal">
-<div class="modal-content" id="modalContent"></div>
 </div>
 
 <script>
@@ -177,235 +158,175 @@ const db = supabase.createClient(
 );
 
 const PRICE = 15000;
-let cachedData = [];
+let cachedData=[];
 
-// ===== TAB FIX
-function tab(t, el){
+// TAB
+function tab(t,el){
+document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+el.classList.add("active");
 
-  document.querySelectorAll(".nav button").forEach(b=>{
-    b.classList.remove("active");
-  });
-
-  el.classList.add("active");
-
-  ["overview","transactions","analytics"].forEach(x=>{
-    document.getElementById(x).style.display="none";
-  });
-
-  document.getElementById(t).style.display="block";
+["overview","transactions","analytics"].forEach(x=>{
+document.getElementById(x).style.display="none";
+});
+document.getElementById(t).style.display="block";
 }
 
-// ===== UTIL
-function code(x){
-  try{return JSON.parse(x).code}catch{return x}
-}
+// UTIL
+function code(x){try{return JSON.parse(x).code}catch{return x}}
 
-// ===== OVERVIEW
+// OVERVIEW
 async function loadOverview(){
+const today=new Date().toISOString().split("T")[0];
+const {data}=await db.from("battery_swaps").select("*").eq("date_in",today);
 
-  const today = new Date().toISOString().split("T")[0];
+let IN=0,OUT=0,stay=0;
+data.forEach(r=>{IN++;if(r.time_out)OUT++;else stay++;});
 
-  const {data} = await db
-    .from("battery_swaps")
-    .select("*")
-    .eq("date_in", today);
+in.innerText="IN: "+IN;
+out.innerText="OUT: "+OUT;
+stay.innerText="Stay: "+stay;
+swap.innerText="Swaps: "+OUT;
+revenue.innerText="Revenue: "+(OUT*PRICE)+" LAK";
 
-  let IN=0, OUT=0, stay=0;
-
-  data.forEach(r=>{
-    IN++;
-    if(r.time_out) OUT++; else stay++;
-  });
-
-  document.getElementById("in").innerText="IN: "+IN;
-  document.getElementById("out").innerText="OUT: "+OUT;
-  document.getElementById("stay").innerText="Stay: "+stay;
-  document.getElementById("swap").innerText="Swaps: "+OUT;
-  document.getElementById("revenue").innerText="Revenue: "+(OUT*PRICE)+" LAK";
-
-  renderVehicleTable(data);
-  renderAlerts(data);
-  renderFrequency(data);
+renderVehicle(data);
+renderAlerts(data);
+renderFreq(data);
 }
 
-// ===== VEHICLE TABLE
-function renderVehicleTable(data){
-
-  let html=`<table class="table">
-  <tr>
-  <th>Vehicle</th>
-  <th>Battery</th>
-  <th>Model</th>
-  <th>Mileage</th>
-  <th>Status</th>
-  </tr>`;
-
-  data.forEach(r=>{
-    html+=`
-    <tr>
-    <td>${r.vehicle_in||"-"}</td>
-    <td>${code(r.battery_id)}</td>
-    <td>${r.model||"-"}</td>
-    <td>${r.mileage_in||"-"}</td>
-    <td>${r.time_out?"OUT":"IN"}</td>
-    </tr>`;
-  });
-
-  html+="</table>";
-
-  document.getElementById("vehicleTable").innerHTML=html;
+// VEHICLE
+function renderVehicle(data){
+let html=`<table class="table"><tr>
+<th>Vehicle</th><th>Battery</th><th>Model</th><th>Mileage</th><th>Status</th>
+</tr>`;
+data.forEach(r=>{
+html+=`<tr>
+<td>${r.vehicle_in||"-"}</td>
+<td>${code(r.battery_id)}</td>
+<td>${r.model||"-"}</td>
+<td>${r.mileage_in||"-"}</td>
+<td>${r.time_out?"OUT":"IN"}</td>
+</tr>`;
+});
+html+="</table>";
+vehicleTable.innerHTML=html;
 }
 
-// ===== ALERT
+// ALERT
 function renderAlerts(data){
-
-  let alerts=[];
-
-  data.forEach(r=>{
-    if(r.mileage_in && r.mileage_out){
-      let diff=r.mileage_out-r.mileage_in;
-      if(diff<50){
-        alerts.push(`${code(r.battery_id)} | ${r.vehicle_in} | ${diff}km`);
-      }
-    }
-  });
-
-  document.getElementById("alerts").innerHTML =
-    alerts.length ? alerts.join("<br>") : "✅ Normal";
+let a=[];
+data.forEach(r=>{
+if(r.mileage_in&&r.mileage_out){
+let d=r.mileage_out-r.mileage_in;
+if(d<50)a.push(`${code(r.battery_id)} | ${r.vehicle_in} | ${d}km`);
+}
+});
+alerts.innerHTML=a.length?a.join("<br>"):"✅ Normal";
 }
 
-// ===== FREQUENCY
-function renderFrequency(data){
-
-  let map={};
-
-  data.forEach(r=>{
-    const v=r.vehicle_in;
-    if(!v) return;
-    if(!map[v]) map[v]=[];
-    map[v].push(r);
-  });
-
-  let html="<h4>Frequent Vehicles</h4>";
-
-  Object.entries(map).forEach(([v,arr])=>{
-    if(arr.length>=2){
-      html+=`<div><b>${v}</b> (${arr.length})<br>`;
-      arr.forEach(x=>{
-        html+=`${code(x.battery_id)} - ${x.time_in}<br>`;
-      });
-      html+="</div><hr>";
-    }
-  });
-
-  document.getElementById("freq").innerHTML = html;
-}
-
-// ===== TRANSACTIONS (AUTO FILTER)
-async function loadTransactions(){
-
-  let q=db.from("battery_swaps").select("*");
-
-  const from=document.getElementById("from").value;
-  const to=document.getElementById("to").value;
-  const sb=document.getElementById("searchBattery").value.toUpperCase();
-  const sv=document.getElementById("searchVehicle").value.toUpperCase();
-
-  if(from) q=q.gte("date_in",from);
-  if(to) q=q.lte("date_in",to);
-
-  const {data}=await q.order("id",{ascending:false}).limit(500);
-
-  cachedData = data;
-
-  let html=`<table class="table">
-  <tr>
-  <th>Battery</th>
-  <th>Vehicle</th>
-  <th>Model</th>
-  <th>Mileage</th>
-  <th>Date</th>
-  <th>Status</th>
-  </tr>`;
-
-  data.forEach(r=>{
-    const c=code(r.battery_id);
-
-    if(sb && !c.includes(sb)) return;
-    if(sv && !(r.vehicle_in||"").toUpperCase().includes(sv)) return;
-
-    html+=`
-    <tr>
-    <td>${c}</td>
-    <td>${r.vehicle_in}</td>
-    <td>${r.model}</td>
-    <td>${r.mileage_in}</td>
-    <td>${r.date_in}</td>
-    <td>${r.time_out?"OUT":"IN"}</td>
-    </tr>`;
-  });
-
-  html+="</table>";
-
-  document.getElementById("table").innerHTML=html;
-}
-
-// AUTO EVENTS
-["from","to","searchBattery","searchVehicle"].forEach(id=>{
-  document.getElementById(id).addEventListener("input", loadTransactions);
+// FREQ
+function renderFreq(data){
+let map={};
+data.forEach(r=>{
+if(!r.vehicle_in)return;
+if(!map[r.vehicle_in])map[r.vehicle_in]=[];
+map[r.vehicle_in].push(r);
 });
 
-// ===== EXPORT
+let html="";
+Object.entries(map).forEach(([v,arr])=>{
+if(arr.length>=2){
+html+=`<div><b>${v}</b> (${arr.length})<br>`;
+arr.forEach(x=>{
+html+=`${code(x.battery_id)} - ${x.time_in}<br>`;
+});
+html+="</div><hr>";
+}
+});
+freq.innerHTML=html||"No repeat";
+}
+
+// TRANSACTIONS
+async function loadTransactions(){
+let q=db.from("battery_swaps").select("*");
+
+const from=fromInput.value;
+const to=toInput.value;
+const sb=searchBattery.value.toUpperCase();
+const sv=searchVehicle.value.toUpperCase();
+
+if(from)q=q.gte("date_in",from);
+if(to)q=q.lte("date_in",to);
+
+const {data}=await q.order("id",{ascending:false}).limit(500);
+
+cachedData=data;
+
+let html=`<table class="table"><tr>
+<th>Battery</th><th>Vehicle</th><th>Model</th>
+<th>Mileage</th><th>Date</th><th>Status</th>
+</tr>`;
+
+data.forEach(r=>{
+const c=code(r.battery_id);
+if(sb && !c.includes(sb)) return;
+if(sv && !(r.vehicle_in||"").toUpperCase().includes(sv)) return;
+
+html+=`<tr>
+<td>${c}</td>
+<td>${r.vehicle_in||"-"}</td>
+<td>${r.model||"-"}</td>
+<td>${r.mileage_in||"-"}</td>
+<td>${r.date_in||"-"}</td>
+<td>${r.time_out?"OUT":"IN"}</td>
+</tr>`;
+});
+
+html+="</table>";
+table.innerHTML=html;
+}
+
+// EVENTS
+const fromInput=document.getElementById("from");
+const toInput=document.getElementById("to");
+
+[fromInput,toInput,searchBattery,searchVehicle].forEach(e=>{
+e.addEventListener("input",loadTransactions);
+});
+
+// EXPORT
 function exportCSV(){
-
-  let csv="Battery,Vehicle,Model,Date,Status\n";
-
-  cachedData.forEach(r=>{
-    csv+=`${code(r.battery_id)},${r.vehicle_in},${r.model},${r.date_in},${r.time_out?"OUT":"IN"}\n`;
-  });
-
-  const blob=new Blob([csv]);
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="transactions.csv";
-  a.click();
+let csv="Battery,Vehicle,Model,Date,Status\n";
+cachedData.forEach(r=>{
+csv+=`${code(r.battery_id)},${r.vehicle_in},${r.model},${r.date_in},${r.time_out?"OUT":"IN"}\n`;
+});
+const blob=new Blob([csv]);
+const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="data.csv";
+a.click();
 }
 
-// ===== FINANCIAL SUMMARY
+// FINANCIAL
 async function loadAnalytics(){
+const {data}=await db.from("battery_swaps").select("*");
 
-  const {data}=await db.from("battery_swaps").select("*");
+let total=0;
+let map={};
 
-  let total=0;
-
-  data.forEach(r=>{
-    if(r.time_out) total+=PRICE;
-  });
-
-  document.getElementById("finance").innerHTML=
-    "Total Revenue: "+total+" LAK";
-
-  drawChart(data);
+data.forEach(r=>{
+if(r.time_out){
+total+=PRICE;
+map[r.date_in]=(map[r.date_in]||0)+1;
 }
+});
 
-// ===== SIMPLE CHART
-function drawChart(data){
+finance.innerText="Total Revenue: "+total+" LAK";
 
-  let map={};
-
-  data.forEach(r=>{
-    const d=r.date_in;
-    if(!map[d]) map[d]=0;
-    if(r.time_out) map[d]+=1;
-  });
-
-  let html="";
-
-  Object.entries(map).slice(-7).forEach(([d,c])=>{
-    html+=`<div>${d}: ${c}</div>`;
-  });
-
-  document.getElementById("chart").innerHTML=html;
+let html="";
+Object.entries(map).slice(-7).forEach(([d,c])=>{
+html+=`<div class="bar">${d}: ${c}</div>`;
+});
+chart.innerHTML=html;
 }
 
 // INIT
@@ -414,15 +335,12 @@ loadTransactions();
 loadAnalytics();
 
 // REALTIME
-db.channel('rt')
-.on('postgres_changes',{event:'*',schema:'public',table:'battery_swaps'},
-()=>{
-  loadOverview();
-  loadTransactions();
-  loadAnalytics();
-})
-.subscribe();
-
+db.channel("rt")
+.on("postgres_changes",{event:"*",schema:"public",table:"battery_swaps"},()=>{
+loadOverview();
+loadTransactions();
+loadAnalytics();
+}).subscribe();
 </script>
 
 </body>
