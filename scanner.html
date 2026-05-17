@@ -11,225 +11,46 @@
 <meta name="theme-color" content="#00e5a0">
 
 <style>
-:root{
-  --bg:#0d0f12;
-  --surface:#161a20;
-  --surface2:#1e242d;
-  --border:#2a3040;
-  --accent:#00e5a0;
-  --accent2:#0099ff;
-  --warn:#ff6b35;
-  --text:#e8eaf0;
-  --text-dim:#6b7585;
-  --radius:12px;
-  --font-mono:'JetBrains Mono',monospace;
-  --font-head:'Orbitron',sans-serif;
-}
-
+/* your existing CSS – unchanged */
+:root{--bg:#0d0f12;--surface:#161a20;--surface2:#1e242d;--border:#2a3040;--accent:#00e5a0;--accent2:#0099ff;--warn:#ff6b35;--text:#e8eaf0;--text-dim:#6b7585;--radius:12px;--font-mono:'JetBrains Mono',monospace;--font-head:'Orbitron',sans-serif;}
 *{box-sizing:border-box;margin:0;padding:0}
-
-body{
-  font-family:var(--font-mono);
-  background:var(--bg);
-  color:var(--text);
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  background-image:
-    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(0,229,160,0.06) 0%, transparent 60%);
-}
-
-.card{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:28px 24px;
-  width:100%;
-  max-width:420px;
-  box-shadow:0 0 60px rgba(0,0,0,0.5);
-}
-
-.header{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  margin-bottom:24px;
-  padding-bottom:20px;
-  border-bottom:1px solid var(--border);
-}
-
-.header-icon{
-  width:44px;height:44px;
-  background:rgba(0,229,160,0.12);
-  border:1px solid rgba(0,229,160,0.25);
-  border-radius:10px;
-  display:flex;align-items:center;justify-content:center;
-  font-size:20px;
-}
-
-.header h2{
-  font-family:var(--font-head);
-  font-size:1.2rem;
-  font-weight:800;
-  letter-spacing:-0.02em;
-}
-
-.header small{
-  display:block;
-  font-size:0.65rem;
-  color:var(--text-dim);
-  font-weight:400;
-  margin-top:2px;
-}
-
-/* SCANNER */
-#reader{
-  width:100%;
-  border-radius:var(--radius);
-  overflow:hidden;
-  margin-bottom:16px;
-  border:2px solid var(--accent);
-  display:none;
-  position:relative;
-}
-
-#reader::after{
-  content:'';
-  position:absolute;
-  top:50%;left:50%;
-  transform:translate(-50%,-50%);
-  width:160px;height:160px;
-  border:2px solid var(--accent);
-  border-radius:4px;
-  box-shadow:0 0 0 2000px rgba(0,0,0,0.4);
-  pointer-events:none;
-}
-
-/* INPUTS */
-.field{
-  margin-bottom:12px;
-  position:relative;
-}
-
-.field label{
-  display:block;
-  font-size:0.65rem;
-  color:var(--text-dim);
-  text-transform:uppercase;
-  letter-spacing:0.1em;
-  margin-bottom:6px;
-}
-
-.field input{
-  width:100%;
-  padding:12px 14px;
-  background:var(--surface2);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  color:var(--text);
-  font-family:var(--font-mono);
-  font-size:0.9rem;
-  transition:border-color 0.2s;
-  outline:none;
-}
-
+body{font-family:var(--font-mono);background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background-image:radial-gradient(ellipse 60% 40% at 50% 0%, rgba(0,229,160,0.06) 0%, transparent 60%);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;width:100%;max-width:420px;box-shadow:0 0 60px rgba(0,0,0,0.5);}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-icon{width:44px;height:44px;background:rgba(0,229,160,0.12);border:1px solid rgba(0,229,160,0.25);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.header h2{font-family:var(--font-head);font-size:1.2rem;font-weight:800;letter-spacing:-0.02em;}
+.header small{display:block;font-size:0.65rem;color:var(--text-dim);font-weight:400;margin-top:2px;}
+.lang-switch{display:flex;gap:6px;}
+.lang-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:0.7rem;font-weight:bold;cursor:pointer;color:var(--text-dim);transition:0.2s;}
+.lang-btn.active{background:var(--accent);color:#000;border-color:var(--accent);}
+#reader{width:100%;border-radius:var(--radius);overflow:hidden;margin-bottom:16px;border:2px solid var(--accent);display:none;position:relative;}
+#reader::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:160px;height:160px;border:2px solid var(--accent);border-radius:4px;box-shadow:0 0 0 2000px rgba(0,0,0,0.4);pointer-events:none;}
+.field{margin-bottom:12px;position:relative;}
+.field label{display:block;font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;}
+.field input{width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;transition:border-color 0.2s;outline:none;}
 .field input:focus{border-color:var(--accent2)}
 .field input.scanned{border-color:var(--accent)}
-
-/* BUTTONS */
-.btn-scan{
-  width:100%;
-  padding:13px;
-  margin-bottom:16px;
-  border:1px solid var(--accent);
-  border-radius:var(--radius);
-  background:rgba(0,229,160,0.08);
-  color:var(--accent);
-  font-family:var(--font-mono);
-  font-size:0.9rem;
-  font-weight:700;
-  cursor:pointer;
-  transition:all 0.2s;
-  letter-spacing:0.05em;
-}
+.btn-scan{width:100%;padding:13px;margin-bottom:16px;border:1px solid var(--accent);border-radius:var(--radius);background:rgba(0,229,160,0.08);color:var(--accent);font-family:var(--font-mono);font-size:0.9rem;font-weight:700;cursor:pointer;transition:all 0.2s;letter-spacing:0.05em;}
 .btn-scan:hover{background:rgba(0,229,160,0.15)}
 .btn-scan.active{background:rgba(255,107,53,0.1);border-color:var(--warn);color:var(--warn)}
-
 .btn-container{display:flex;gap:10px;margin-top:4px}
-
-.btn-action{
-  flex:1;
-  padding:14px;
-  border:none;
-  border-radius:var(--radius);
-  font-family:var(--font-mono);
-  font-size:0.9rem;
-  font-weight:700;
-  cursor:pointer;
-  transition:all 0.18s;
-  letter-spacing:0.08em;
-}
-
+.btn-action{flex:1;padding:14px;border:none;border-radius:var(--radius);font-family:var(--font-mono);font-size:0.9rem;font-weight:700;cursor:pointer;transition:all 0.18s;letter-spacing:0.08em;}
 .btn-in{background:rgba(0,229,160,0.15);color:var(--accent);border:1px solid rgba(0,229,160,0.3)}
 .btn-in:hover:not(:disabled){background:rgba(0,229,160,0.25)}
 .btn-out{background:rgba(255,107,53,0.12);color:var(--warn);border:1px solid rgba(255,107,53,0.3)}
 .btn-out:hover:not(:disabled){background:rgba(255,107,53,0.22)}
-
 button:disabled{opacity:0.4;cursor:not-allowed}
-
-/* STATUS */
-#status{
-  margin-top:16px;
-  padding:12px 14px;
-  border-radius:var(--radius);
-  font-size:0.8rem;
-  font-weight:700;
-  text-align:center;
-  background:var(--surface2);
-  border:1px solid var(--border);
-  color:var(--text-dim);
-  transition:all 0.2s;
-  min-height:44px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
+#status{margin-top:16px;padding:12px 14px;border-radius:var(--radius);font-size:0.8rem;font-weight:700;text-align:center;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);transition:all 0.2s;min-height:44px;display:flex;align-items:center;justify-content:center;}
 #status.ok{background:rgba(0,229,160,0.08);border-color:rgba(0,229,160,0.3);color:var(--accent)}
 #status.err{background:rgba(255,107,53,0.08);border-color:rgba(255,107,53,0.3);color:var(--warn)}
 #status.loading{background:rgba(0,153,255,0.08);border-color:rgba(0,153,255,0.3);color:var(--accent2)}
-
-/* CONFIRM MODAL */
-.modal-bg{
-  display:none;
-  position:fixed;inset:0;
-  background:rgba(0,0,0,0.75);
-  z-index:100;
-  align-items:center;justify-content:center;
-  backdrop-filter:blur(4px);
-}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
 .modal-bg.show{display:flex}
-.modal{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:28px 24px;
-  max-width:320px;
-  width:90%;
-  text-align:center;
-}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;max-width:320px;width:90%;text-align:center;}
 .modal h3{font-family:var(--font-head);font-size:1.1rem;margin-bottom:8px}
 .modal p{color:var(--text-dim);font-size:0.8rem;margin-bottom:20px;line-height:1.6}
-.modal .confirm-info{
-  background:var(--surface2);
-  border-radius:8px;
-  padding:12px;
-  margin-bottom:20px;
-  font-size:0.8rem;
-  text-align:left;
-  line-height:1.8;
-}
+.modal .confirm-info{background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:20px;font-size:0.8rem;text-align:left;line-height:1.8;}
 .modal .confirm-info span{color:var(--text-dim)}
 .modal-btns{display:flex;gap:10px}
 .modal-btns button{flex:1;padding:12px;border-radius:8px;font-family:var(--font-mono);font-weight:700;cursor:pointer;border:none;font-size:0.85rem}
@@ -238,7 +59,6 @@ button:disabled{opacity:0.4;cursor:not-allowed}
 .btn-confirm-out{background:var(--warn);color:#fff}
 </style>
 </head>
-
 <body>
 
 <div id="authBox" class="card" style="max-width:420px;margin:auto">
@@ -263,85 +83,231 @@ button:disabled{opacity:0.4;cursor:not-allowed}
 
 <div class="card" id="scannerBox" style="display:none;">
   <div class="header">
-    <div class="header-icon">🔋</div>
-    <div>
-      <h2>Battery Swap</h2>
-      <small id="clockDisplay">Loading time...</small>
+    <div class="header-left">
+      <div class="header-icon">🔋</div>
+      <div>
+        <h2>Battery Swap</h2>
+        <small id="clockDisplay">Loading time...</small>
+      </div>
+    </div>
+    <div class="lang-switch">
+      <button class="lang-btn" data-lang="en">🇬🇧 EN</button>
+      <button class="lang-btn" data-lang="lo">🇱🇦 LA</button>
     </div>
   </div>
 
   <div id="reader"></div>
-  <button id="scanBtn" class="btn-scan">📷 SCAN QR CODE</button>
+  <button id="scanBtn" class="btn-scan"></button>
 
   <div class="field">
-    <label>Battery ID</label>
-    <input id="bid" placeholder="e.g. BAT-001" autocomplete="off" maxlength="50">
+    <label id="labelBid"></label>
+    <input id="bid" placeholder="" autocomplete="off" maxlength="50">
   </div>
   <div class="field">
-    <label>Vehicle No</label>
-    <input id="vno" placeholder="e.g. LA-1234" autocomplete="off" maxlength="20">
+    <label id="labelVno"></label>
+    <input id="vno" placeholder="" autocomplete="off" maxlength="20">
   </div>
   <div class="field">
-    <label>Mileage (km)</label>
-    <input id="mil" type="number" placeholder="e.g. 1500" min="0" max="999999">
+    <label id="labelMil"></label>
+    <input id="mil" type="number" placeholder="" min="0" max="999999">
   </div>
 
   <div class="btn-container">
-    <button class="btn-action btn-in" onclick="requestProcess('IN')">⬇ IN</button>
-    <button class="btn-action btn-out" onclick="requestProcess('OUT')">⬆ OUT</button>
+    <button class="btn-action btn-in" onclick="requestProcess('IN')"></button>
+    <button class="btn-action btn-out" onclick="requestProcess('OUT')"></button>
   </div>
-  <button onclick="logout()" class="btn-scan" style="margin-top:10px">
-  🚪 LOGOUT
-  </button>
+  <button onclick="logout()" class="btn-scan" style="margin-top:10px" id="logoutBtn"></button>
   <div id="status">Ready</div>
 </div>
 
 <script>
 // ===== CONFIG =====
-// FIX: Keys are public (anon) but ensure RLS is enabled in Supabase dashboard
-// so only valid inserts/updates are allowed per table policy.
 const SUPABASE_URL = "https://bdcwfgutqnfhacanswlk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkY3dmZ3V0cW5maGFjYW5zd2xrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTg0NzMsImV4cCI6MjA5MDI3NDQ3M30.qHTe6H5ca5PQ9RahiIdrGc4eOMMJrZrSsACAl5mJm4A";
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// ===== TRANSLATIONS =====
+const LANG = {
+  en: {
+    // static UI
+    brand: "Battery Swap",
+    scanBtn: "📷 SCAN QR CODE",
+    scanBtnActive: "🛑 CLOSE SCANNER",
+    labelBid: "Battery ID",
+    labelVno: "Vehicle No",
+    labelMil: "Mileage (km)",
+    btnIn: "⬇ IN",
+    btnOut: "⬆ OUT",
+    logoutBtn: "🚪 LOGOUT",
+    placeholderBid: "e.g. BAT-001",
+    placeholderVno: "e.g. LA-1234",
+    placeholderMil: "e.g. 1500",
+    // status messages
+    statusReady: "Ready",
+    statusLoginFirst: "❌ Please login first",
+    statusEnterBid: "❌ Enter Battery ID",
+    statusEnterVno: "❌ Enter Vehicle No",
+    statusEnterMil: "❌ Enter Mileage",
+    statusInvalidMil: "❌ Invalid mileage value",
+    statusInvalidBidFormat: "❌ Invalid Battery ID format",
+    statusVerifying: "⏳ Verifying battery...",
+    statusWaitingConfirm: "Waiting for confirmation...",
+    statusProcessing: "⏳ Processing...",
+    statusOkIn: "✅ Battery IN logged",
+    statusOkOut: "✅ Battery OUT logged",
+    // errors
+    errBatteryNotFound: "Battery not found in master list",
+    errAlreadyIn: "Battery is already checked IN",
+    errNoOpenRecord: "No open IN record for this battery",
+    errMileageOutLower: (inVal, outVal) => `Mileage OUT (${outVal}) must be ≥ mileage IN (${inVal})`,
+    errGeneric: (msg) => `❌ ${msg}`,
+    // scanner
+    invalidQrFormat: "❌ Invalid QR format",
+    scannedOk: (code) => `✅ Scanned: ${code}`,
+    cameraError: (err) => `Camera error: ${err}`,
+    // modal
+    modalTitleIn: "⬇ Confirm Battery IN",
+    modalTitleOut: "⬆ Confirm Battery OUT",
+    modalBattery: "Battery:",
+    modalModel: "Model:",
+    modalVehicle: "Vehicle:",
+    modalMileage: "Mileage:",
+    modalCancel: "Cancel",
+    modalConfirmIn: "Confirm IN",
+    modalConfirmOut: "Confirm OUT",
+    // login
+    loginBtn: "Login",
+    authStatusError: (msg) => `❌ ${msg}`,
+    loggedInOk: (email) => `✅ Logged in: ${email}`,
+  },
+  lo: {  // Lao language
+    brand: "ສະຫຼັບແບັດເຕີຣີ",
+    scanBtn: "📷 ສະແກນ QR ໂຄດ",
+    scanBtnActive: "🛑 ປິດກ້ອງ",
+    labelBid: "ລະຫັດແບັດເຕີຣີ",
+    labelVno: "ທະບຽນລົດ",
+    labelMil: "ໄລຍະທາງ (ກມ)",
+    btnIn: "⬇ ເຂົ້າ",
+    btnOut: "⬆ ອອກ",
+    logoutBtn: "🚪 ອອກຈາກລະບົບ",
+    placeholderBid: "ຕົວຢ່າງ: BAT-001",
+    placeholderVno: "ຕົວຢ່າງ: LA-1234",
+    placeholderMil: "ຕົວຢ່າງ: 1500",
+    statusReady: "ພ້ອມ",
+    statusLoginFirst: "❌ ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ",
+    statusEnterBid: "❌ ປ້ອນລະຫັດແບັດເຕີຣີ",
+    statusEnterVno: "❌ ປ້ອນທະບຽນລົດ",
+    statusEnterMil: "❌ ປ້ອນໄລຍະທາງ",
+    statusInvalidMil: "❌ ຄ່າໄລຍະທາງບໍ່ຖືກຕ້ອງ",
+    statusInvalidBidFormat: "❌ ຮູບແບບລະຫັດແບັດເຕີຣີບໍ່ຖືກຕ້ອງ",
+    statusVerifying: "⏳ ກຳລັງກວດສອບແບັດ...",
+    statusWaitingConfirm: "ກຳລັງລໍຖ້າການຢືນຢັນ...",
+    statusProcessing: "⏳ ກຳລັງດຳເນີນການ...",
+    statusOkIn: "✅ ບັນທຶກແບັດເຂົ້າແລ້ວ",
+    statusOkOut: "✅ ບັນທຶກແບັດອອກແລ້ວ",
+    errBatteryNotFound: "ບໍ່ພົບແບັດເຕີຣີໃນລະບົບ",
+    errAlreadyIn: "ແບັດເຕີຣີນີ້ຖືກເຂົ້າແລ້ວ",
+    errNoOpenRecord: "ບໍ່ມີການເຂົ້າຂອງແບັດນີ້",
+    errMileageOutLower: (inVal, outVal) => `ໄລຍະທາງອອກ (${outVal}) ຕ້ອງຫຼາຍກວ່າ ຫຼື ເທົ່າກັບ ໄລຍະທາງເຂົ້າ (${inVal})`,
+    errGeneric: (msg) => `❌ ${msg}`,
+    invalidQrFormat: "❌ ຮູບແບບ QR ບໍ່ຖືກຕ້ອງ",
+    scannedOk: (code) => `✅ ສະແກນແລ້ວ: ${code}`,
+    cameraError: (err) => `ຜິດພາດກ້ອງ: ${err}`,
+    modalTitleIn: "⬇ ຢືນຢັນການເຂົ້າແບັດ",
+    modalTitleOut: "⬆ ຢືນຢັນການອອກແບັດ",
+    modalBattery: "ແບັດເຕີຣີ:",
+    modalModel: "ລຸ້ນ:",
+    modalVehicle: "ລົດ:",
+    modalMileage: "ໄລຍະທາງ:",
+    modalCancel: "ຍົກເລີກ",
+    modalConfirmIn: "ຢືນຢັນເຂົ້າ",
+    modalConfirmOut: "ຢືນຢັນອອກ",
+    loginBtn: "ເຂົ້າສູ່ລະບົບ",
+    authStatusError: (msg) => `❌ ${msg}`,
+    loggedInOk: (email) => `✅ ເຂົ້າສູ່ລະບົບ: ${email}`,
+  }
+};
+
+let currentLanguage = 'en';  // default
+
+function t(key, ...args) {
+  let str = LANG[currentLanguage][key];
+  if (typeof str === 'function') str = str(...args);
+  if (!str && LANG['en'][key]) str = LANG['en'][key];
+  if (!str) return key;
+  // replace {0}, {1} style if needed (simple)
+  for (let i = 0; i < args.length; i++) {
+    str = str.replace(new RegExp(`\\{${i}\\}`, 'g'), args[i]);
+  }
+  return str;
+}
+
+function refreshUITexts() {
+  // Header brand
+  document.querySelector('#scannerBox .header h2').innerText = t('brand');
+  // Buttons
+  if (!scanning) {
+    document.getElementById('scanBtn').innerText = t('scanBtn');
+  } else {
+    document.getElementById('scanBtn').innerText = t('scanBtnActive');
+  }
+  document.querySelector('.btn-in').innerText = t('btnIn');
+  document.querySelector('.btn-out').innerText = t('btnOut');
+  document.getElementById('logoutBtn').innerText = t('logoutBtn');
+  // Labels
+  document.getElementById('labelBid').innerText = t('labelBid');
+  document.getElementById('labelVno').innerText = t('labelVno');
+  document.getElementById('labelMil').innerText = t('labelMil');
+  // Placeholders
+  document.getElementById('bid').placeholder = t('placeholderBid');
+  document.getElementById('vno').placeholder = t('placeholderVno');
+  document.getElementById('mil').placeholder = t('placeholderMil');
+  // Status if it's in idle state (not a temporary message)
+  const statusDiv = document.getElementById('status');
+  if (statusDiv.innerText === t('statusReady') || statusDiv.innerText === 'Ready') {
+    statusDiv.innerText = t('statusReady');
+  }
+  // Modal texts (static parts)
+  document.querySelector('#modalConfirmBtn').innerText = (pendingAction && pendingAction.type === 'IN') ? t('modalConfirmIn') : t('modalConfirmOut');
+  document.querySelector('.btn-cancel').innerText = t('modalCancel');
+}
+
 // ===== STATE =====
 let scanner = null;
 let scanning = false;
-let pendingAction = null; // { type, bid, vno, mil, battery }
+let pendingAction = null;
 let currentUser = null;
 
 // ===== CLOCK =====
 function updateClock(){
   const n = new Date();
-  document.getElementById("clockDisplay").innerText =
-    n.toLocaleDateString("en-CA") + " · " + n.toLocaleTimeString("en-GB");
+  document.getElementById("clockDisplay").innerText = n.toLocaleDateString("en-CA") + " · " + n.toLocaleTimeString("en-GB");
 }
 updateClock();
 setInterval(updateClock, 1000);
 
-// ===== STATUS =====
-function setStatus(msg, type="idle"){
+// ===== STATUS (now accepts translation keys) =====
+function setStatus(keyOrMsg, type="idle", ...params) {
   const s = document.getElementById("status");
+  let msg = keyOrMsg;
+  if (LANG[currentLanguage][keyOrMsg] !== undefined) {
+    msg = t(keyOrMsg, ...params);
+  } else if (LANG['en'][keyOrMsg] !== undefined) {
+    msg = t(keyOrMsg, ...params);
+  }
   s.innerText = msg;
   s.className = type === "ok" ? "ok" : type === "err" ? "err" : type === "loading" ? "loading" : "";
 }
 
-// ===== UI LOCK =====
 function lockUI(lock=true){
   document.querySelectorAll(".btn-action, #scanBtn").forEach(b => b.disabled = lock);
 }
 
-// ===== INPUT SANITIZE =====
-// FIX: sanitize strings to prevent injection / garbage data
 function sanitize(str){ return String(str).replace(/[<>"'`]/g,"").trim() }
 
-// ===== TIME =====
 function getNow(){
   const n = new Date();
-  return {
-    date: n.toLocaleDateString("en-CA"),
-    time: n.toLocaleTimeString("en-GB")
-  };
+  return { date: n.toLocaleDateString("en-CA"), time: n.toLocaleTimeString("en-GB") };
 }
 
 async function logout(){
@@ -349,44 +315,35 @@ async function logout(){
   location.reload();
 }
 
-  
 async function login(){
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
-  const {data, error} = await db.auth.signInWithPassword({
-    email,
-    password
-  });
+  const {data, error} = await db.auth.signInWithPassword({ email, password });
 
   if(error){
-    document.getElementById("authStatus").innerText = "❌ " + error.message;
+    document.getElementById("authStatus").innerText = t('authStatusError', error.message);
     return;
   }
 
   currentUser = data.user;
-
   document.getElementById("authBox").style.display = "none";
   document.getElementById("scannerBox").style.display = "block";
-
-  setStatus("✅ Logged in: " + currentUser.email, "ok");
+  setStatus('loggedInOk', 'ok', currentUser.email);
+  refreshUITexts(); // ensure texts after login
 }
 
-  
 async function checkSession(){
   const {data} = await db.auth.getSession();
-
   if(data.session){
     currentUser = data.session.user;
-
     document.getElementById("authBox").style.display = "none";
     document.getElementById("scannerBox").style.display = "block";
+    refreshUITexts();
   }
 }
-
 checkSession();
-  
-  
+
 // ===== SCANNER =====
 async function closeScanner(){
   if(scanner){
@@ -395,9 +352,8 @@ async function closeScanner(){
   }
   scanning = false;
   document.getElementById("reader").style.display = "none";
-  const btn = document.getElementById("scanBtn");
-  btn.innerText = "📷 SCAN QR CODE";
-  btn.classList.remove("active");
+  document.getElementById("scanBtn").innerText = t('scanBtn');
+  document.getElementById("scanBtn").classList.remove("active");
 }
 
 document.getElementById("scanBtn").onclick = async () => {
@@ -406,7 +362,7 @@ document.getElementById("scanBtn").onclick = async () => {
   const reader = document.getElementById("reader");
   reader.style.display = "block";
   const btn = document.getElementById("scanBtn");
-  btn.innerText = "🛑 CLOSE SCANNER";
+  btn.innerText = t('scanBtnActive');
   btn.classList.add("active");
 
   scanner = new Html5Qrcode("reader");
@@ -416,87 +372,78 @@ document.getElementById("scanBtn").onclick = async () => {
       {facingMode:"environment"},
       {fps:10, qrbox:{width:200,height:200}},
       (decoded) => {
-        // FIX: sanitize QR decoded value before use
         let code = decoded;
         try{
           const j = JSON.parse(decoded);
           if(j.code) code = j.code;
         }catch(e){}
-
         code = sanitize(code).toUpperCase();
-        // FIX: validate basic format — only allow alphanumeric + dash/underscore
         if(!/^[A-Z0-9_\-]{1,50}$/.test(code)){
-          setStatus("❌ Invalid QR format", "err");
+          setStatus('invalidQrFormat', 'err');
           return;
         }
-
         const bidEl = document.getElementById("bid");
         bidEl.value = code;
         bidEl.classList.add("scanned");
-        setStatus("✅ Scanned: " + code, "ok");
+        setStatus('scannedOk', 'ok', code);
         setTimeout(() => closeScanner(), 200);
       }
     );
     scanning = true;
   }catch(err){
-    setStatus("Camera error: " + err.message, "err");
+    setStatus('cameraError', 'err', err.message);
     await closeScanner();
   }
 };
 
-// ===== REQUEST (shows confirm modal) =====
-// FIX: Added confirmation step to prevent fat-finger errors
+// ===== REQUEST =====
 async function requestProcess(type){
   if(!currentUser){
-  return setStatus("❌ Please login first", "err");
-}
+    setStatus('statusLoginFirst', 'err');
+    return;
+  }
   const bid = sanitize(document.getElementById("bid").value).toUpperCase();
   const vno = sanitize(document.getElementById("vno").value);
   const milRaw = document.getElementById("mil").value.trim();
   const mil = parseInt(milRaw, 10);
 
-  if(!bid)  return setStatus("❌ Enter Battery ID", "err");
-  if(!vno)  return setStatus("❌ Enter Vehicle No", "err");
-  if(!milRaw) return setStatus("❌ Enter Mileage", "err");
-  // FIX: validate mileage is a positive number
-  if(isNaN(mil) || mil < 0 || mil > 999999)
-    return setStatus("❌ Invalid mileage value", "err");
-  // FIX: validate bid format
-  if(!/^[A-Z0-9_\-]{1,50}$/.test(bid))
-    return setStatus("❌ Invalid Battery ID format", "err");
+  if(!bid)  { setStatus('statusEnterBid', 'err'); return; }
+  if(!vno)  { setStatus('statusEnterVno', 'err'); return; }
+  if(!milRaw) { setStatus('statusEnterMil', 'err'); return; }
+  if(isNaN(mil) || mil < 0 || mil > 999999) { setStatus('statusInvalidMil', 'err'); return; }
+  if(!/^[A-Z0-9_\-]{1,50}$/.test(bid)) { setStatus('statusInvalidBidFormat', 'err'); return; }
 
   lockUI(true);
-  setStatus("⏳ Verifying battery...", "loading");
+  setStatus('statusVerifying', 'loading');
 
   try{
-    // FIX: use exact match instead of broad ilike to avoid multi-match ambiguity
     const {data:battery, error:e1} = await db
       .from("battery_master")
       .select("*")
       .ilike("battery_id", `%${bid}%`)
       .maybeSingle();
 
-    if(e1 || !battery) throw new Error("Battery not found in master list");
+    if(e1 || !battery) throw new Error(t('errBatteryNotFound'));
 
     pendingAction = {type, bid, vno, mil: mil.toString(), battery};
 
-    // Show modal
-    document.getElementById("modalTitle").innerText = type === "IN" ? "⬇ Confirm Battery IN" : "⬆ Confirm Battery OUT";
-    document.getElementById("modalInfo").innerHTML =
-      `<span>Battery:</span>  ${bid}<br>` +
-      `<span>Model:</span>    ${battery.model || "-"}<br>` +
-      `<span>Vehicle:</span>  ${vno}<br>` +
-      `<span>Mileage:</span>  ${mil} km`;
+    // Modal texts
+    document.getElementById("modalTitle").innerText = (type === "IN") ? t('modalTitleIn') : t('modalTitleOut');
+    document.getElementById("modalInfo").innerHTML = 
+      `<span>${t('modalBattery')}</span> ${bid}<br>` +
+      `<span>${t('modalModel')}</span> ${battery.model || "-"}<br>` +
+      `<span>${t('modalVehicle')}</span> ${vno}<br>` +
+      `<span>${t('modalMileage')}</span> ${mil} km`;
 
     const btn = document.getElementById("modalConfirmBtn");
-    btn.innerText = "Confirm " + type;
-    btn.className = type === "IN" ? "btn-confirm-in" : "btn-confirm-out";
+    btn.innerText = (type === "IN") ? t('modalConfirmIn') : t('modalConfirmOut');
+    btn.className = (type === "IN") ? "btn-confirm-in" : "btn-confirm-out";
 
     document.getElementById("confirmModal").classList.add("show");
-    setStatus("Waiting for confirmation...");
+    setStatus('statusWaitingConfirm');
 
   }catch(err){
-    setStatus("❌ " + err.message, "err");
+    setStatus('errGeneric', 'err', err.message);
   }finally{
     lockUI(false);
   }
@@ -504,52 +451,42 @@ async function requestProcess(type){
 
 function closeModal(){
   document.getElementById("confirmModal").classList.remove("show");
-  // NOTE: do NOT clear pendingAction here — confirmProcess() needs it
-  setStatus("Ready");
+  setStatus('statusReady');
 }
 
-// ===== CONFIRMED PROCESS =====
 async function confirmProcess(){
-  // FIX: read pendingAction BEFORE closing modal
   if(!pendingAction) return;
   const {type, bid, vno, mil, battery} = pendingAction;
   pendingAction = null;
-
-  // Now safe to close modal
   document.getElementById("confirmModal").classList.remove("show");
 
   const now = getNow();
   lockUI(true);
-  setStatus("⏳ Processing...", "loading");
+  setStatus('statusProcessing', 'loading');
 
   try{
     if(type === "IN"){
-      // FIX: use ilike so it matches both clean IDs and legacy JSON-stored IDs
       const {data:exist} = await db
         .from("battery_swaps")
         .select("id")
         .ilike("battery_id", `%${bid}%`)
         .is("time_out", null);
 
-      if(exist && exist.length > 0) throw new Error("Battery is already checked IN");
+      if(exist && exist.length > 0) throw new Error(t('errAlreadyIn'));
 
       const {error} = await db.from("battery_swaps").insert([{
-      battery_id: bid,
-      model: battery.model,
-      vehicle_in: vno,
-      mileage_in: parseInt(mil, 10),
-      date_in: now.date,
-      time_in: now.time,
-      user_id: currentUser.id,
-      user_email: currentUser.email
-}]);
-
+        battery_id: bid,
+        model: battery.model,
+        vehicle_in: vno,
+        mileage_in: parseInt(mil, 10),
+        date_in: now.date,
+        time_in: now.time,
+        user_id: currentUser.id,
+        user_email: currentUser.email
+      }]);
       if(error) throw error;
-      setStatus("✅ Battery IN logged", "ok");
-
-    }else{
-
-      // FIX: use ilike so it matches both clean IDs and legacy JSON-stored IDs
+      setStatus('statusOkIn', 'ok');
+    } else {
       const {data:exist} = await db
         .from("battery_swaps")
         .select("*")
@@ -557,27 +494,26 @@ async function confirmProcess(){
         .is("time_out", null)
         .limit(1);
 
-      if(!exist || exist.length === 0) throw new Error("No open IN record for this battery");
+      if(!exist || exist.length === 0) throw new Error(t('errNoOpenRecord'));
 
       const mileageOut = parseInt(mil, 10);
       const mileageIn  = parseInt(exist[0].mileage_in, 10);
       if(!isNaN(mileageIn) && mileageOut < mileageIn)
-        throw new Error(`Mileage OUT (${mileageOut}) must be ≥ mileage IN (${mileageIn})`);
+        throw new Error(t('errMileageOutLower', mileageIn, mileageOut));
 
       const {error} = await db
         .from("battery_swaps")
-       .update({
-        vehicle_out: vno,
-        mileage_out: mileageOut,
-        date_out: now.date,
-        time_out: now.time,
-        user_id: currentUser.id,
-        user_email: currentUser.email
-})
+        .update({
+          vehicle_out: vno,
+          mileage_out: mileageOut,
+          date_out: now.date,
+          time_out: now.time,
+          user_id: currentUser.id,
+          user_email: currentUser.email
+        })
         .eq("id", exist[0].id);
-
       if(error) throw error;
-      setStatus("✅ Battery OUT logged", "ok");
+      setStatus('statusOkOut', 'ok');
     }
 
     // Reset form
@@ -587,34 +523,55 @@ async function confirmProcess(){
     document.getElementById("bid").classList.remove("scanned");
 
   }catch(err){
-    setStatus("❌ " + err.message, "err");
+    setStatus('errGeneric', 'err', err.message);
   }finally{
     lockUI(false);
   }
 }
 
+// ===== LANGUAGE SWITCHER =====
+function setLanguage(lang) {
+  if (!LANG[lang]) return;
+  currentLanguage = lang;
+  // Update active style of buttons
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    if (btn.getAttribute('data-lang') === lang) btn.classList.add('active');
+    else btn.classList.remove('active');
+  });
+  refreshUITexts();
+  // Also update static status if it's currently showing "Ready"
+  if (document.getElementById('status').innerText === t('statusReady') ||
+      document.getElementById('status').innerText === 'Ready' ||
+      document.getElementById('status').innerText === 'ພ້ອມ') {
+    setStatus('statusReady');
+  }
+}
+
+document.querySelectorAll('.lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const lang = btn.getAttribute('data-lang');
+    setLanguage(lang);
+  });
+});
+
 // ===== PWA INSTALL =====
 let deferredPrompt;
-
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-
   const btn = document.createElement("button");
   btn.className = "btn-scan";
   btn.innerText = "📲 INSTALL APP";
-
   btn.onclick = async () => {
     deferredPrompt.prompt();
     deferredPrompt = null;
   };
-
   const target = document.getElementById("scannerBox");
-  if(target){
-    target.appendChild(btn);
-  }
+  if(target) target.appendChild(btn);
 });
 
+// Initial language set
+setLanguage('en');
 </script>
 </body>
 </html>
