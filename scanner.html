@@ -27,7 +27,7 @@ body{font-family:var(--font-mono);background:var(--bg);color:var(--text);min-hei
 #reader{width:100%;border-radius:var(--radius);overflow:hidden;margin-bottom:16px;border:2px solid var(--accent);display:none;position:relative;}
 #reader::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:160px;height:160px;border:2px solid var(--accent);border-radius:4px;box-shadow:0 0 0 2000px rgba(0,0,0,0.4);pointer-events:none;}
 .field{margin-bottom:12px;position:relative;}
-.field label{display:block;font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;}
+.field label{display:block;font-size:0.9rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;}
 .field input{width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;transition:border-color 0.2s;outline:none;}
 .field input:focus{border-color:var(--accent2)}
 .field input.scanned{border-color:var(--accent)}
@@ -185,14 +185,14 @@ const LANG = {
     scanBtn: "📷 ສະແກນ QR ໂຄດ",
     scanBtnActive: "🛑 ປິດກ້ອງ",
     labelBid: "ລະຫັດແບັດເຕີຣີ",
-    labelVno: "ທະບຽນລົດ",
+    labelVno: "ປ້າຍລົດ",
     labelMil: "ໄລຍະທາງ (ກມ)",
     btnIn: "⬇ ເຂົ້າ",
     btnOut: "⬆ ອອກ",
     logoutBtn: "🚪 ອອກຈາກລະບົບ",
-    placeholderBid: "ຕົວຢ່າງ: BAT-001",
-    placeholderVno: "ຕົວຢ່າງ: LA-1234",
-    placeholderMil: "ຕົວຢ່າງ: 1500",
+    placeholderBid: "ຕົວຢ່າງ: C00001",
+    placeholderVno: "ຕົວຢ່າງ: 1234",
+    placeholderMil: "ຕົວຢ່າງ: 15000",
     statusReady: "ພ້ອມ",
     statusLoginFirst: "❌ ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ",
     statusEnterBid: "❌ ປ້ອນລະຫັດແບັດເຕີຣີ",
@@ -206,15 +206,15 @@ const LANG = {
     statusOkIn: "✅ ບັນທຶກແບັດເຂົ້າແລ້ວ",
     statusOkOut: "✅ ບັນທຶກແບັດອອກແລ້ວ",
     errBatteryNotFound: "ບໍ່ພົບແບັດເຕີຣີໃນລະບົບ",
-    errAlreadyIn: "ແບັດເຕີຣີນີ້ຖືກເຂົ້າແລ້ວ",
-    errNoOpenRecord: "ບໍ່ມີການເຂົ້າຂອງແບັດນີ້",
-    errMileageOutLower: (inVal, outVal) => `ໄລຍະທາງອອກ (${outVal}) ຕ້ອງຫຼາຍກວ່າ ຫຼື ເທົ່າກັບ ໄລຍະທາງເຂົ້າ (${inVal})`,
+    errAlreadyIn: "ແບັດເຕີຣີນີ້ຖືກຮັບເຂົ້າແລ້ວ",
+    errNoOpenRecord: "ບໍ່ມີການຮັບເຂົ້າຂອງແບັດນີ້",
+    errMileageOutLower: (inVal, outVal) => `ເລກກົງເຕິແບັດອອກ (${outVal}) ຕ້ອງຫຼາຍກວ່າ ຫຼື ເທົ່າກັບ ເລກກົງເຕິແບັດເຂົ້າ (${inVal})`,
     errGeneric: (msg) => `❌ ${msg}`,
     invalidQrFormat: "❌ ຮູບແບບ QR ບໍ່ຖືກຕ້ອງ",
     scannedOk: (code) => `✅ ສະແກນແລ້ວ: ${code}`,
     cameraError: (err) => `ຜິດພາດກ້ອງ: ${err}`,
-    modalTitleIn: "⬇ ຢືນຢັນການເຂົ້າແບັດ",
-    modalTitleOut: "⬆ ຢືນຢັນການອອກແບັດ",
+    modalTitleIn: "⬇ ຢືນຢັນຮັບແບັດເຂົ້າ",
+    modalTitleOut: "⬆ ຢືນຢັນສົ່ງແບັດອອກ",
     modalBattery: "ແບັດເຕີຣີ:",
     modalModel: "ລຸ້ນ:",
     modalVehicle: "ລົດ:",
