@@ -453,8 +453,7 @@ function closeModal(){
   document.getElementById("confirmModal").classList.remove("show");
   setStatus('statusReady');
 }
-
-async function confirmProcess(){
+  async function confirmProcess(){
   if(!pendingAction) return;
   const {type, bid, vno, mil, battery} = pendingAction;
   pendingAction = null;
@@ -496,16 +495,13 @@ async function confirmProcess(){
 
       if(!exist || exist.length === 0) throw new Error(t('errNoOpenRecord'));
 
-      const mileageOut = parseInt(mil, 10);
-      const mileageIn  = parseInt(exist[0].mileage_in, 10);
-      if(!isNaN(mileageIn) && mileageOut < mileageIn)
-        throw new Error(t('errMileageOutLower', mileageIn, mileageOut));
+      // ✅ Mileage comparison removed – any value is accepted
 
       const {error} = await db
         .from("battery_swaps")
         .update({
           vehicle_out: vno,
-          mileage_out: mileageOut,
+          mileage_out: parseInt(mil, 10),
           date_out: now.date,
           time_out: now.time,
           user_id: currentUser.id,
