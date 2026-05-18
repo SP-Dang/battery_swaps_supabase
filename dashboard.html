@@ -828,7 +828,7 @@ async function loadTransactions(){
     return;
   }
 
-  // ✅ Fixed: added missing '>' after <table>
+  // ✅ Added Time OUT column (between Date OUT and Status)
   let html = `<table>
     <thead>
       <tr>
@@ -839,6 +839,7 @@ async function loadTransactions(){
         <th>Date IN</th>
         <th>Time IN</th>
         <th>Date OUT</th>
+        <th>Time OUT</th>
         <th>Status</th>
       </tr>
     </thead>
@@ -853,6 +854,7 @@ async function loadTransactions(){
       <td>${r.date_in || "-"}</td>
       <td>${r.time_in || "-"}</td>
       <td>${r.date_out || "-"}</td>
+      <td>${r.time_out || "-"}</td>
       <td><span class="badge ${r.time_out ? "badge-out" : "badge-in"}">${r.time_out ? "OUT" : "IN"}</span></td>
     </tr>`;
   });
