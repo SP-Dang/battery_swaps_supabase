@@ -5,6 +5,7 @@
 <title>LSM Battery Dashboard</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@600;700;800&display=swap" rel="stylesheet">
 
 <style>
@@ -578,7 +579,7 @@ tr:hover td{background:var(--surface2)}
         <input type="date" id="filterTo">
         <input id="filterBattery" placeholder="🔍 Battery ID" style="width:140px">
         <input id="filterVehicle" placeholder="🔍 Vehicle" style="width:140px">
-        <button class="export-btn" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="export-btn" onclick="exportToExcel()">⬇ Export Excel</button>
       </div>
       <div class="table-wrap" id="txTable">
         <div class="skeleton" style="height:40px;margin-bottom:4px"></div>
@@ -595,7 +596,7 @@ tr:hover td{background:var(--surface2)}
         <div class="card-title">💰 Financial Summary</div>
         <div id="financeTable"></div>
         <div style="margin-top:16px">
-          <button class="export-btn" onclick="exportCSV()">⬇ Export Full Report</button>
+          <button class="export-btn" onclick="exportToExcel()">⬇ Export Excel</button>
         </div>
       </div>
       <div class="card">
@@ -936,70 +937,70 @@ async function loadAnalytics(){
 }
 
 // ===== EXPORT =====
-// FIX: export always uses the correct cached dataset per tab
-function exportCSV(){
+  function exportToExcel() {
   const source = txData.length ? txData : allData;
-
-  // helper (email → name)
-  function getName(email){
+  
+  function getName(email) {
     return email ? email.split("@")[0] : "";
   }
 
-  let csv = "Battery,Vehicle,Model,MileageIN,MileageOUT,Distance,DateIN,TimeIN,DateOUT,TimeOUT,Status,Staff\n";
-
+  // Main sheet
+  const mainSheetData = [
+    ["Battery", "Vehicle", "Model", "Mileage IN", "Mileage OUT", "Distance", 
+     "Date IN", "Time IN", "Date OUT", "Time OUT", "Status", "Staff"]
+  ];
   source.forEach(r => {
     const dist = (r.mileage_in != null && r.mileage_out != null)
       ? (parseInt(r.mileage_out) - parseInt(r.mileage_in)) + "km"
       : "";
-    csv += [
-      code(r.battery_id), r.vehicle_in||"", r.model||"",
-      r.mileage_in||"", r.mileage_out||"",
-      dist, r.date_in||"", r.time_in||"",
-      r.date_out||"", r.time_out||"",
+    mainSheetData.push([
+      code(r.battery_id), r.vehicle_in || "", r.model || "",
+      r.mileage_in || "", r.mileage_out || "",
+      dist, r.date_in || "", r.time_in || "",
+      r.date_out || "", r.time_out || "",
       r.time_out ? "OUT" : "IN",
       getName(r.user_email)
-    ].join(",") + "\n";
+    ]);
   });
 
-  csv += "\n=== ALERTS (<50km distance) ===\nBattery,Vehicle,Distance,Staff\n";
-
+  // Alerts sheet
+  const alertsData = [["Battery", "Vehicle", "Distance (km)", "Staff"]];
   source.forEach(r => {
-    if(r.mileage_in != null && r.mileage_out != null){
+    if (r.mileage_in != null && r.mileage_out != null) {
       const diff = parseInt(r.mileage_out) - parseInt(r.mileage_in);
-      if(diff >= 0 && diff < 50){
-        csv += `${code(r.battery_id)},${r.vehicle_in},${diff}km,${getName(r.user_email)}\n`;
+      if (diff >= 0 && diff < 50) {
+        alertsData.push([code(r.battery_id), r.vehicle_in || "", diff, getName(r.user_email)]);
       }
     }
   });
 
-  csv += "\n=== BATTERY MODEL SUMMARY ===\nModel,Count\n";
-  let modelMap = {};
-  source.forEach(r => {
-    const m = r.model || "Unknown";
-    modelMap[m] = (modelMap[m] || 0) + 1;
-  });
-  Object.entries(modelMap).forEach(([model, count]) => {
-    csv += `${model},${count}\n`;
-  });
+  // Model summary sheet
+  const modelMap = {};
+  source.forEach(r => { const m = r.model || "Unknown"; modelMap[m] = (modelMap[m] || 0) + 1; });
+  const modelData = [["Model", "Count"]];
+  Object.entries(modelMap).forEach(([model, count]) => modelData.push([model, count]));
 
-  csv += "\n=== FREQUENT VEHICLES (2+ swaps) ===\nVehicle,Times\n";
-  let vehicleMap = {};
-  source.forEach(r => {
-    if(!r.vehicle_in) return;
-    const v = r.vehicle_in;
-    vehicleMap[v] = (vehicleMap[v] || 0) + 1;
-  });
-  Object.entries(vehicleMap).forEach(([vehicle, count]) => {
-    if(count >= 2){
-      csv += `${vehicle},${count}\n`;
-    }
-  });
-  
-  const blob = new Blob([csv], {type:"text/csv"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "LSM_Report_" + todayISO() + ".csv";
-  a.click();
+  // Frequent vehicles sheet
+  const vehicleMap = {};
+  source.forEach(r => { if (r.vehicle_in) vehicleMap[r.vehicle_in] = (vehicleMap[r.vehicle_in] || 0) + 1; });
+  const vehicleData = [["Vehicle", "Swaps"]];
+  Object.entries(vehicleMap)
+    .filter(([, count]) => count >= 2)
+    .forEach(([vehicle, count]) => vehicleData.push([vehicle, count]));
+
+  // Create workbook and sheets
+  const wb = XLSX.utils.book_new();
+  const wsMain = XLSX.utils.aoa_to_sheet(mainSheetData);
+  const wsAlerts = XLSX.utils.aoa_to_sheet(alertsData);
+  const wsModels = XLSX.utils.aoa_to_sheet(modelData);
+  const wsVehicles = XLSX.utils.aoa_to_sheet(vehicleData);
+
+  XLSX.utils.book_append_sheet(wb, wsMain, "Transactions");
+  XLSX.utils.book_append_sheet(wb, wsAlerts, "Alerts (<50km)");
+  XLSX.utils.book_append_sheet(wb, wsModels, "Model Summary");
+  XLSX.utils.book_append_sheet(wb, wsVehicles, "Frequent Vehicles");
+
+  XLSX.writeFile(wb, `LSM_Report_${todayISO()}.xlsx`);
 }
 
 // ===== RELOAD ALL =====
