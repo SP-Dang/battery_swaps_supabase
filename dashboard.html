@@ -811,7 +811,7 @@ async function loadTransactions(){
 }
 
 // FIX: Separate render so client-side filters don't re-fetch
-function renderTxTable(){
+  function renderTxTable(){
   const sb = document.getElementById("filterBattery").value.toUpperCase();
   const sv = document.getElementById("filterVehicle").value.toUpperCase();
 
@@ -828,12 +828,21 @@ function renderTxTable(){
     return;
   }
 
-  let html = `<tr>
-    <thead><tr>
-      <th>Battery</th><th>Vehicle</th><th>Model</th>
-      <th>Mileage IN</th><th>Date IN</th><th>Time IN</th>
-      <th>Date OUT</th><th>Status</th>
-    </tr></thead><tbody>`;
+  // ✅ Fixed: added missing '>' after <table>
+  let html = `<table>
+    <thead>
+      <tr>
+        <th>Battery</th>
+        <th>Vehicle</th>
+        <th>Model</th>
+        <th>Mileage IN</th>
+        <th>Date IN</th>
+        <th>Time IN</th>
+        <th>Date OUT</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>`;
 
   filtered.forEach(r => {
     html += `<tr>
@@ -848,10 +857,11 @@ function renderTxTable(){
     </tr>`;
   });
 
-  html += "</tbody></table>";
+  html += `</tbody>
+  </table>`;
+
   el.innerHTML = html;
 }
-
 // ===== ANALYTICS =====
 async function loadAnalytics(){
   const {data, error} = await db
